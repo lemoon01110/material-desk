@@ -1,0 +1,538 @@
+/* Weather band and its detail view (scripts/weather-card.js), in the page's Material colors (--dl-*, set by
+   scripts/lemon.js). Not a card but a glass carousel: no box, a hairline above and below, one row between them
+   fading out at both ends. Only Now is glass; the other items are quiet columns of one size that show the glass on
+   hover or focus. */
+
+/* ---------- Shared by the band and the detail view ---------- */
+.dlw-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* The Material shape badge with the big icon. */
+.dlw-shape { position: relative; width: 112px; height: 112px; flex: none; display: grid; place-items: center; }
+.dlw-shape svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.dlw-shape > svg:first-child { fill: var(--wi-shape); }
+.dlw-shape .wi { position: relative; width: 58%; height: 58%; inset: auto; }
+/* Each accent family as a container pair: the fill (--wi-shape) and the color drawn on it (--wi-on). The big icon
+   is drawn in the on_* color ("back": a sun or moon behind a cloud, mixed toward the container). */
+.dlw-tertiary { --wi-shape: var(--dl-tertiary_container, #554519); --wi-on: var(--dl-on_tertiary_container, #f9e0a6); }
+.dlw-secondary { --wi-shape: var(--dl-secondary_container, #5d3f39); --wi-on: var(--dl-on_secondary_container, #ffdad3); }
+.dlw-primary { --wi-shape: var(--dl-primary_container, #733427); --wi-on: var(--dl-on_primary_container, #ffdad3); }
+.dlw-error { --wi-shape: var(--dl-error_container, #93000a); --wi-on: var(--dl-on_error_container, #ffdad6); }
+.dlw-shape { --wi-glow: var(--wi-on); --wi-cloud: var(--wi-on); --wi-wet: var(--wi-on);
+    --wi-back: color-mix(in srgb, var(--wi-on) 62%, var(--wi-shape)); }
+.dlw-wait { --wi-shape: var(--dl-surface_container_highest, #3d3230); }
+/* Small icons drawn straight on the wallpaper, the glass or the detail view. */
+#dlWeather, .dlw-detail { --wi-glow: var(--dl-tertiary, #dcc48c); --wi-back: var(--dl-tertiary, #dcc48c);
+    --wi-cloud: var(--dl-on_surface_variant, #d8c2bd); --wi-wet: var(--dl-primary, #ffb4a4); }
+#dlWeather { --wi-cloud: color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 82%, transparent); }
+.dlw-temp { font: 700 64px/0.9 var(--f-display); color: var(--dl-primary, #ffb4a4);
+    font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.dlw-words { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dlw-cond { margin: 0; font: 600 1.15rem/1.25 var(--f-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dlw-sub { font-size: 0.9rem; color: var(--dl-on_surface_variant, #d8c2bd); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+.dlw-bar { position: relative; flex: 1; height: 6px; border-radius: 3px;
+    background: color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 16%, transparent); }
+.dlw-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--dl-tertiary, #dcc48c); }
+.dlw-bar b, .dlw-wk b { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%;
+    transform: translate(-50%, -50%); background: var(--dl-primary, #ffb4a4);
+    box-shadow: 0 0 0 3px var(--dl-surface_container_high, #322825); }
+.dlw-tv small { font: 500 0.72em var(--f-body); color: var(--dl-on_surface_variant, #d8c2bd); }
+/* Wind direction: the arrow points where the wind blows. */
+.dlw-arrow { display: grid; place-items: center; transform: rotate(var(--dir, 0deg)); }
+.dlw-wk { position: relative; width: 80%; height: 4px; margin-top: 2px; border-radius: 2px;
+    background: var(--dl-surface_container_highest, #3d3230); }
+.dlw-wk i { position: absolute; top: 0; bottom: 0; min-width: 4px; border-radius: 2px;
+    background: linear-gradient(90deg, var(--dl-tertiary, #dcc48c), var(--dl-primary, #ffb4a4)); }
+
+/* ---------- The band ---------- */
+/* Two hairlines and two tidy rows between them (a single bare strip was too hard to read): on top Now and a glass panel of readings, both fixed; under them the strip of hours and
+   days that slides sideways and fades out at both ends. The band may be a bit wider than the search bar (its host):
+   it measures the center column (container dlwc). */
+#center { container: dlwc / inline-size; }
+#dlWeather {
+    /* Sizes for the tall tier; the height tiers below shrink them. --nh the top row's height, --nw Now's width, --bs
+       badge, --tp big temperature, --sh and --cw a strip column's height and width, --ig strip gap, --rg gap between
+       the rows, --vt and --vb room for the controls on the top and bottom lines. */
+    --nh: 176px; --nw: 380px; --bs: 92px; --tp: 60px; --sh: 104px; --cw: 76px; --ig: 6px; --rg: 12px;
+    --vt: 22px; --vb: 18px;
+    --band: min(100cqw, 940px);
+    --fw: 66px;  /* edge fade width, set from the band's width by weather-card.js (7%, 40 to 96 px) */
+    --hair: color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 40%, transparent);
+    --ink-2: color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 86%, transparent);
+    /* Text on the strip's rail: a soft dark halo keeps it readable over bright leaves. */
+    --halo: 0 1px 2px rgb(0 0 0 / 0.6), 0 0 8px rgb(0 0 0 / 0.45);
+    /* The glass of Now and the readings: thick enough for a bright wallpaper. */
+    --glass-base: color-mix(in srgb, var(--dl-surface_container, #271d1b) 72%, transparent);
+    position: relative; width: var(--band); margin: 8px 0 8px calc((100% - var(--band)) / 2);
+    color: var(--dl-on_surface, #f1dfdb); font-family: var(--f-body);
+}
+/* The band keeps one size when side columns fold or open, so nothing in the center jumps. */
+:root.no-todo.no-bookmarks #dlWeather { --band: min(100cqw, 1180px); }
+
+/* The two hairlines, fading out toward both ends. Each is a zero-height row: the top one carries the place on the
+   left and "More details" on the right, the bottom one the Hours and Days jumps and the caption in the middle. */
+.dlb-rule { position: relative; height: 0; display: flex; align-items: center; z-index: 2; }
+.dlb-rule::before, .dlb-rule::after, .dlb-line { content: ""; height: 1px; min-width: 0; }
+.dlb-rule::before { flex: 1; background: linear-gradient(90deg, transparent, var(--hair) var(--fw)); }
+.dlb-rule::after { flex: 1; background: linear-gradient(-90deg, transparent, var(--hair) var(--fw)); }
+.dlb-top::before { flex: 0 0 calc(var(--fw) * 0.6); background: linear-gradient(90deg, transparent, var(--hair)); }
+.dlb-top::after { flex: 0 0 calc(var(--fw) * 0.6); background: linear-gradient(-90deg, transparent, var(--hair)); }
+.dlb-line { flex: 1; background: var(--hair); }
+.dlb-place { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; margin: 0 4px; padding: 0 12px;
+    border-radius: 14px; font: 600 0.88rem/1 var(--f-body); white-space: nowrap;
+    background: color-mix(in srgb, var(--dl-surface_container_high, #322825) 82%, transparent); }
+/* Old data: the stale button is the pill itself. */
+.dlb-place:has(.dlb-stale) { height: auto; padding: 0; background: none; }
+.dlb-upd { font-weight: 500; color: var(--ink-2); }
+/* The way into the detail view: a filled, labeled button on the top line. */
+.dlb-more {
+    flex: none; display: inline-flex; align-items: center; gap: 7px; height: 34px; margin: 0 6px; padding: 0 16px 0 12px;
+    border: 0; border-radius: 17px; font: 600 0.9rem/1 var(--f-body);
+    background: var(--dl-primary_container, #733427); color: var(--dl-on_primary_container, #ffdad3);
+    box-shadow: 0 2px 10px rgb(0 0 0 / 0.3); transition: filter 0.15s, transform 0.15s;
+}
+.dlb-more svg { width: 17px; height: 17px; fill: currentColor; flex: none; }
+.dlb-more:hover { filter: brightness(1.15); }
+.dlb-more:active { transform: scale(0.97); }
+.dlb-more:focus-visible { outline: 2px solid var(--dl-primary, #ffb4a4); outline-offset: 2px; }
+.dlb-nav, .dlb-note { flex: none; display: flex; align-items: center; margin: 0 8px; }
+.dlb-nav { gap: 4px; }
+.dlb-jump, .dlb-stale, .dlb-retry {
+    height: 28px; padding: 0 12px; border: 0; border-radius: 14px; color: var(--dl-on_surface, #f1dfdb);
+    background: color-mix(in srgb, var(--dl-surface_container_high, #322825) 82%, transparent);
+    font: 600 0.85rem/28px var(--f-body); cursor: pointer; transition: color 0.15s, background-color 0.15s;
+}
+.dlb-jump:hover { background: var(--dl-surface_container_highest, #3d3230); }
+.dlb-jump[aria-current] { background: var(--dl-secondary_container, #5d3f39); color: var(--dl-on_secondary_container, #ffdad3); }
+.dlb-jump:focus-visible, .dlb-stale:focus-visible, .dlb-retry:focus-visible {
+    outline: 2px solid var(--dl-primary, #ffb4a4); outline-offset: -2px; }
+.dlb-note { gap: 10px; font: 500 0.9rem/28px var(--f-body); white-space: nowrap; }
+.dlb-cap:empty { display: none; }
+/* The caption on the same tonal pill as the jumps, so it reads over a bright wallpaper too. */
+.dlb-cap { padding: 0 12px; border-radius: 14px; line-height: 28px;
+    background: color-mix(in srgb, var(--dl-surface_container_high, #322825) 82%, transparent); }
+/* Old data says so, in the error color, and refreshes on a click. */
+.dlb-stale { display: inline-flex; align-items: center; gap: 6px; padding: 0 12px 0 9px; color: var(--dl-error, #ffb4ab); }
+.dlb-stale svg, .dlb-retry svg { width: 16px; height: 16px; fill: currentColor; flex: none; }
+.dlb-stale:hover { background: color-mix(in srgb, var(--dl-error, #ffb4ab) 18%, var(--dl-surface_container_high, #322825)); }
+.dlb-loading .dlb-stale svg { animation: dlb-spin 1s linear infinite; }
+@keyframes dlb-spin { to { transform: rotate(360deg); } }
+
+/* ---- The top row: Now and the readings ---- */
+.dlb-main { container: dlbm / inline-size; position: relative; z-index: 1; display: flex; gap: 10px;
+    height: var(--nh); margin: var(--vt) calc(var(--fw) * 0.35) var(--rg); }
+.dlb-it {
+    position: relative; flex: none; margin: 0; padding: 0; border: 0; color: inherit; font: inherit; text-align: center;
+    background: transparent; cursor: pointer;
+    transition: background-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.dlb-it:focus-visible { outline: 2px solid var(--dl-primary, #ffb4a4); outline-offset: -3px; }
+.dlb-it:active { transform: scale(0.98); }
+/* The glass: a strong blur over 72% of the surface, a soft light wash, a faint rim. */
+.dlb-now, .dlb-read {
+    --glass: var(--dl-on_surface, #f1dfdb);
+    background: linear-gradient(165deg, color-mix(in srgb, var(--glass) 8%, transparent), transparent 70%), var(--glass-base);
+    backdrop-filter: blur(28px) saturate(1.1);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 12%, transparent),
+        inset 0 1px 0 color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 16%, transparent), 0 6px 20px rgb(0 0 0 / 0.2);
+}
+/* Now: the shape badge, the big temperature, the condition and feels like, one outlook line, tomorrow, today's
+   low to high. */
+.dlb-now {
+    --glass: var(--dl-primary, #ffb4a4);
+    width: var(--nw); height: 100%; border-radius: 32px;
+    display: grid; grid-template-columns: var(--bs) auto minmax(0, 1fr); align-content: center;
+    grid-template-areas: "shape temp words" "shape out out" "shape tm tm" "shape range range"; align-items: center;
+    column-gap: 14px; row-gap: 3px; padding: 10px 24px 12px 18px; text-align: left;
+}
+.dlb-now:hover {
+    background: linear-gradient(165deg, color-mix(in srgb, var(--glass) 14%, transparent), transparent 70%), var(--glass-base);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 24%, transparent),
+        inset 0 1px 0 color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 30%, transparent), 0 8px 22px rgb(0 0 0 / 0.24);
+}
+.dlb-now .dlw-shape { grid-area: shape; width: var(--bs); height: var(--bs); align-self: center; }
+.dlb-now .dlw-shape .wi { width: 66%; height: 66%; }
+/* The badge in its role color (one step brighter than the container) with the matching on_* color drawn on it. */
+.dlb-now .dlw-tertiary { --wi-shape: var(--dl-tertiary, #dcc48c); --wi-on: var(--dl-on_tertiary, #3c2f04); }
+.dlb-now .dlw-secondary { --wi-shape: var(--dl-secondary, #e7bdb3); --wi-on: var(--dl-on_secondary, #442a24); }
+.dlb-now .dlw-primary { --wi-shape: var(--dl-primary, #ffb4a4); --wi-on: var(--dl-on_primary, #561f13); }
+.dlb-now .dlw-error { --wi-shape: var(--dl-error, #ffb4ab); --wi-on: var(--dl-on_error, #690005); }
+.dlb-temp { grid-area: temp; font: 700 var(--tp)/0.95 var(--f-display); color: var(--dl-primary, #ffb4a4);
+    font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.dlb-t3 .dlb-temp { font-size: calc(var(--tp) * 0.82); }
+.dlb-words { grid-area: words; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.dlb-cond { font: 600 1.15rem/1.2 var(--f-body); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+.dlb-feels { font-size: 0.9rem; line-height: 1.3; color: var(--ink-2); white-space: nowrap; }
+.dlb-out, .dlb-tm { font: 600 0.92rem/1.3 var(--f-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.dlb-out { grid-area: out; margin-top: 4px; color: var(--dl-tertiary, #dcc48c); }
+.dlb-tm { grid-area: tm; font-weight: 500; color: var(--ink-2); }
+.dlb-tm b { font-weight: 600; color: var(--dl-on_surface, #f1dfdb); }
+.dlb-range { grid-area: range; display: flex; align-items: center; gap: 8px; margin-top: 3px;
+    font: 600 0.88rem var(--f-display); color: var(--ink-2); }
+.dlb-rl { font: 600 0.88rem var(--f-body); color: var(--dl-on_surface, #f1dfdb); }
+.dlb-range .dlw-bar { height: 5px; }
+.dlb-range .dlw-bar b { width: 10px; height: 10px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 30%, transparent); }
+
+/* The readings: one glass panel with three (or, when wide, four) tiles in each of two rows. */
+.dlb-read { flex: 1; min-width: 0; height: 100%; border-radius: 28px; padding: 6px; display: grid; gap: 5px;
+    grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+.dlb-rd.dlb-rd-x { display: none; }
+/* Both side columns folded (a band over 1000 px): room for pressure and visibility as well. */
+@container dlbm (min-width: 1000px) {
+    .dlb-read { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .dlb-rd.dlb-rd-x { display: flex; }
+}
+.dlb-rd { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px;
+    padding: 6px 14px; border-radius: 22px; text-align: left;
+    background: color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 5%, transparent); }
+.dlb-rd:hover { background: color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 13%, transparent); }
+.dlb-tl { display: flex; align-items: center; gap: 7px; max-width: 100%; font: 600 0.9rem/1.2 var(--f-body);
+    color: var(--ink-2); white-space: nowrap; }
+.dlb-ic { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: none;
+    background: var(--wi-shape); color: var(--wi-on); }
+.dlb-ic svg { width: 14px; height: 14px; fill: currentColor; display: block; }
+.dlb-v { max-width: 100%; font: 700 1.45rem/1.1 var(--f-display); font-variant-numeric: tabular-nums; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+.dlb-s { max-width: 100%; font-size: 0.88rem; line-height: 1.2; color: var(--ink-2); white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; }
+.dlb-s:empty { display: none; }
+.dlw-tv small, .dlb-v small, .dlb-t small { font: 500 0.7em var(--f-body); color: var(--ink-2); }
+
+/* ---- The strip: the next 12 hours, then the next 7 days ---- */
+.dlb-track {
+    position: relative; z-index: 1; box-sizing: border-box; height: calc(var(--sh) + 8px);
+    display: flex; align-items: center; gap: var(--ig); margin: 0 0 var(--vb);
+    padding: 0 calc(var(--fw) + 8px);
+    overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain;
+    user-select: none; -webkit-user-select: none;
+}
+/* A rail of the surface under the strip (no blur, no edge), fading out at both ends with the strip. */
+#dlWeather:not(.dlb-quiet)::before {
+    content: ""; position: absolute; left: 0; right: 0; bottom: var(--vb); height: calc(var(--sh) + 8px);
+    pointer-events: none; border-radius: 24px;
+    background: color-mix(in srgb, var(--dl-surface, #1a1110) 68%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 var(--fw), #000 calc(100% - var(--fw)), transparent);
+}
+.dlb-track::-webkit-scrollbar { display: none; }
+.dlb-track.dlb-drag, .dlb-track.dlb-drag .dlb-it { cursor: grabbing; }
+.dlb-sec { display: flex; align-items: center; gap: var(--ig); flex: none; }
+.dlb-sep { flex: none; width: 1px; height: 46%; margin: 0 8px; background: var(--hair); }
+.dlb-sec:empty + .dlb-sep { display: none; }
+/* The fade: only items inside an edge fade get the mask (--m is where the band starts, in the item's own
+   coordinates); items outside the band are not drawn at all. */
+.dlb-it.dlb-fade {
+    mask-image: linear-gradient(90deg, transparent var(--m), #000 calc(var(--m) + var(--fw)),
+        #000 calc(var(--m) + var(--bw, 100%) - var(--fw)), transparent calc(var(--m) + var(--bw, 100%)));
+}
+.dlb-it.dlb-off { visibility: hidden; }
+/* One size and shape for every column; a light lift on hover or focus. */
+.dlb-col { width: var(--cw); height: var(--sh); border-radius: 22px; padding: 8px 2px;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; text-shadow: var(--halo); }
+.dlb-col svg { filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5)); }
+.dlb-col:not(.dlb-ghost):hover, .dlb-col:focus-visible {
+    background: color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 14%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 18%, transparent);
+    transform: translateY(-2px);
+}
+.dlb-sic { width: 30px; height: 30px; display: grid; place-items: center; color: var(--dl-tertiary, #dcc48c); }
+.dlb-sic svg { width: 26px; height: 26px; fill: currentColor; display: block; }
+.dlb-h { font: 600 0.88rem/1.2 var(--f-body); color: var(--ink-2); white-space: nowrap; }
+.dlb-tmrw .dlb-h, .dlb-sun .dlb-h { color: var(--dl-tertiary, #dcc48c); }
+.dlb-col .wi { width: 32px; height: 32px; flex: none; }
+.dlb-t { font: 700 1.22rem/1.1 var(--f-display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dlb-sun .dlb-t { font-size: 1.05rem; }
+.dlb-lo { margin-left: 5px; font: 600 0.95rem/1.1 var(--f-display); color: var(--ink-2); }
+/* The chance of rain, only when it matters. */
+.dlb-pp { height: 1rem; font: 700 0.85rem/1rem var(--f-display); color: var(--dl-primary, #ffb4a4); }
+
+/* Loading and error: the same height as the band, a quiet line between the two hairlines. */
+.dlb-quietbody { height: calc(var(--vt) + var(--nh) + var(--rg) + var(--sh) + 8px + var(--vb));
+    display: flex; align-items: center; justify-content: center; gap: 14px; }
+/* The message on a glass pill, so it reads over a bright wallpaper too. */
+.dlb-msg { margin: 0; display: flex; align-items: center; gap: 14px; min-height: 44px; padding: 6px 20px 6px 8px; border-radius: 30px;
+    font: 500 1.05rem/1.3 var(--f-body); background: var(--glass-base); backdrop-filter: blur(20px);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 12%, transparent); }
+.dlb-msg:not(:has(.dlw-shape)) { padding-left: 20px; }
+.dlb-msg .dlw-shape { width: 44px; height: 44px; }
+.dlb-retry { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px; border-radius: 17px;
+    color: var(--dl-on_primary_container, #ffdad3); background: var(--dl-primary_container, #733427); }
+
+/* Height tiers. The band must fit under the clock, the date and the search bar, whose sizes step down at 820 and
+   680 container px (base.css): tight below 770, small below 621. One direction only, so the band never grows as the
+   window shrinks. */
+@container lemon (max-height: 769px) {
+    #dlWeather { --nh: 144px; --nw: 312px; --bs: 72px; --tp: 50px; --sh: 90px; --cw: 70px; --rg: 8px; --vt: 20px; --vb: 16px;
+        margin-block: 4px; }
+    .dlb-now { column-gap: 11px; row-gap: 2px; padding: 8px 18px 10px 14px; border-radius: 28px; }
+    .dlb-cond { font-size: 1.02rem; -webkit-line-clamp: 1; white-space: nowrap; text-overflow: ellipsis; display: block; }
+    .dlb-feels { font-size: 0.82rem; }
+    .dlb-out, .dlb-tm { font-size: 0.84rem; }
+    .dlb-out { margin-top: 2px; }
+    .dlb-range, .dlb-rl { font-size: 0.8rem; }
+    .dlb-range { margin-top: 1px; }
+    .dlb-read { border-radius: 24px; padding: 5px; gap: 4px; }
+    .dlb-rd { padding: 4px 11px; gap: 2px; border-radius: 19px; }
+    .dlb-tl { font-size: 0.82rem; gap: 6px; }
+    .dlb-ic { width: 19px; height: 19px; }
+    .dlb-ic svg { width: 12px; height: 12px; }
+    .dlb-v { font-size: 1.15rem; }
+    .dlb-s { font-size: 0.8rem; }
+    .dlb-col { padding: 6px 2px; }
+    .dlb-col .wi { width: 28px; height: 28px; }
+    .dlb-sic { width: 28px; height: 28px; }
+    .dlb-h { font-size: 0.82rem; }
+    .dlb-t { font-size: 1.1rem; }
+    .dlb-sun .dlb-t { font-size: 0.95rem; }
+    .dlb-pp { font-size: 0.78rem; }
+    .dlb-more { height: 30px; font-size: 0.84rem; padding: 0 14px 0 10px; }
+    .dlb-place { font-size: 0.82rem; }
+    .dlb-jump, .dlb-stale { height: 26px; font-size: 0.8rem; line-height: 26px; }
+    .dlb-note { font-size: 0.84rem; }
+}
+@container lemon (max-height: 620px) {
+    #dlWeather { --nh: 124px; --nw: 292px; --bs: 60px; --tp: 44px; --sh: 78px; --cw: 64px; --ig: 4px; --rg: 6px;
+        --vt: 18px; --vb: 15px; margin-block: 2px; }
+    .dlb-now { padding: 6px 16px 8px 12px; column-gap: 9px; row-gap: 1px; }
+    .dlb-cond { font-size: 0.95rem; }
+    .dlb-feels { font-size: 0.76rem; }
+    .dlb-out, .dlb-tm { font-size: 0.78rem; }
+    .dlb-range, .dlb-rl { font-size: 0.74rem; }
+    .dlb-range .dlw-bar { height: 4px; }
+    .dlb-rd { padding: 2px 9px; gap: 1px; }
+    .dlb-tl { font-size: 0.78rem; }
+    .dlb-ic { width: 17px; height: 17px; }
+    .dlb-ic svg { width: 11px; height: 11px; }
+    .dlb-v { font-size: 1.05rem; }
+    .dlb-s { font-size: 0.76rem; }
+    .dlb-col { padding: 4px 1px; }
+    .dlb-col .wi { width: 24px; height: 24px; }
+    .dlb-sic { width: 24px; height: 24px; }
+    .dlb-sic svg { width: 22px; height: 22px; }
+    .dlb-h { font-size: 0.76rem; }
+    .dlb-t { font-size: 1rem; }
+    .dlb-sun .dlb-t { font-size: 0.86rem; }
+    .dlb-lo { font-size: 0.8rem; }
+    .dlb-pp { font-size: 0.72rem; height: 0.9rem; line-height: 0.9rem; }
+    .dlb-more { height: 28px; font-size: 0.8rem; }
+    .dlb-jump, .dlb-stale { height: 24px; font-size: 0.76rem; line-height: 24px; }
+    .dlb-note { font-size: 0.8rem; }
+}
+/* A narrow band (the 1366 wide screen): a slimmer Now, so the readings keep their words. (after the height tiers, so it wins) */
+@container dlbm (max-width: 700px) {
+    .dlb-now { --nw: 280px; --bs: 60px; column-gap: 10px; padding-inline: 12px 14px; }
+    .dlb-cond { font-size: 0.95rem; }
+    .dlb-rd { padding-inline: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .dlb-it:active, .dlb-col:not(.dlb-ghost):hover, .dlb-col:focus-visible, .dlb-more:active { transform: none; }
+    .dlb-loading .dlb-stale svg { animation: none; }
+}
+
+/* ---------- Detail view: covers the center column (over the clock and the search bar), never the side columns. */
+#center { position: relative; }
+/* While it is open the center sits above the side drawers (narrow windows, wide columns), so its close button is
+   never under them. */
+.dlw-open #center { z-index: 7; }
+.dlw-detail {
+    position: absolute; inset: 0; z-index: 4; margin: 0 auto; width: min(100%, 1100px);
+    display: flex; flex-direction: column; border-radius: var(--r-xl); overflow: hidden;
+    /* 98% opaque (the band's bright text showed through at 96%): a blur behind it could not be seen, so there is none (it only cost frames on opening). */
+    background: color-mix(in srgb, var(--dl-surface_container, #271d1b) 98%, transparent);
+    box-shadow: 0 12px 40px rgb(0 0 0 / 0.45);
+    color: var(--dl-on_surface, #f1dfdb); font-family: var(--f-body); cursor: auto;
+    container: dlwd / inline-size;
+    /* Grows out of the item that opened it (weather-card.js sets transform-origin), Material's emphasized decelerate. */
+    opacity: 0; transform: scale(0.9); transform-origin: 50% 100%;
+    transition: opacity 0.2s ease, transform 0.35s cubic-bezier(0.05, 0.7, 0.1, 1);
+}
+.dlw-detail.dlw-anim { will-change: transform, opacity; }
+.dlw-detail.dlw-in { opacity: 1; transform: none; }
+.dlw-detail.dlw-measure { transform: none; transition: none; }
+.dlw-detail[hidden] { display: none; }
+.dlw-d-head { display: flex; align-items: center; gap: 18px; padding: 20px 20px 14px 22px; flex: none; }
+.dlw-detail .dlw-shape.dlw-small { width: 76px; height: 76px; flex: 0 0 76px; }
+.dlw-d-head .dlw-temp { font-size: 58px; }
+.dlw-d-head .dlw-words { flex: 1; }
+.dlw-d-head .dlw-cond { font-size: 1.3rem; font-family: var(--f-display); font-weight: 700;
+    white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+.dlw-d-head .dlw-sum { color: var(--dl-tertiary, #dcc48c); white-space: normal; }
+.dlw-old { color: var(--dl-error, #ffb4ab); }
+.dlw-close { align-self: flex-start; flex: none; background: var(--dl-surface_container_highest, #3d3230); }
+.dlw-d-body { flex: 1; min-height: 0; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+    padding: 2px 20px 20px; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-areas: "chart chart" "days grid"; gap: 14px; align-items: start; align-content: start; outline: 0; }
+.dlw-d-body.dlw-more { mask-image: linear-gradient(#000 calc(100% - 28px), transparent); }
+.dlw-d-body:focus-visible { box-shadow: inset 0 0 0 2px var(--dl-primary, #ffb4a4); border-radius: var(--r-lg); }
+.dlw-d-sec { border-radius: var(--r-lg); padding: 14px 18px 16px;
+    background: var(--dl-surface_container_high, #322825); min-width: 0; }
+.dlw-d-chartsec { grid-area: chart; }
+.dlw-d-days { grid-area: days; }
+.dlw-d-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.dlw-d-h h3 { margin: 0; font: 700 1rem var(--f-display); }
+.dlw-legend { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--dl-on_surface_variant, #d8c2bd); }
+.dlw-legend i { display: inline-block; margin-left: 8px; }
+.dlw-lg-line { width: 14px; height: 3px; border-radius: 2px; background: var(--dl-primary, #ffb4a4); }
+.dlw-lg-bar { width: 8px; height: 11px; border-radius: 2px; background: color-mix(in srgb, var(--dl-secondary, #e7bdb3) 60%, transparent); }
+.dlw-lg-night { width: 11px; height: 11px; border-radius: 3px; background: color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 9%, transparent); }
+
+/* 24-hour chart: SVG stretched to the box, labels in HTML so the text never stretches. */
+.dlw-chart { position: relative; height: 150px; margin: 12px 4px 24px; }
+.dlw-chart svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.dlw-night { fill: var(--dl-on_surface, #f1dfdb); fill-opacity: 0.05; }
+.dlw-pbar { fill: var(--dl-secondary, #e7bdb3); fill-opacity: 0.6; }
+.dlw-line { fill: none; stroke: var(--dl-primary, #ffb4a4); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.dlw-cl-t, .dlw-cl-x, .dlw-cl-p, .dlw-cl-now { position: absolute; pointer-events: none; white-space: nowrap; }
+.dlw-cl-t { transform: translate(-50%, calc(-100% - 7px)); font: 700 0.85rem var(--f-display); }
+.dlw-cl-x { top: 100%; transform: translate(-50%, 6px); font-size: 0.75rem; color: var(--dl-on_surface_variant, #d8c2bd); }
+.dlw-cl-p { transform: translate(-50%, calc(-100% - 2px)); font: 600 0.68rem var(--f-display); color: var(--dl-secondary, #e7bdb3); }
+.dlw-cl-now { width: 11px; height: 11px; border-radius: 50%; transform: translate(-50%, -50%);
+    background: var(--dl-primary, #ffb4a4); box-shadow: 0 0 0 3px var(--dl-surface_container_high, #322825); }
+.dlw-hits { position: absolute; inset: 0; }
+.dlw-hits i { position: absolute; top: 0; bottom: 0; border-radius: 6px; }
+.dlw-hits i:hover { background: color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 7%, transparent); }
+.dlw-hits i span { display: none; }
+.dlw-chart:has(.dlw-on) { margin-top: 30px; }
+/* The hour picked in the band: a tinted column with its own label above the chart. */
+.dlw-hits i.dlw-on { background: color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 11%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dl-primary, #ffb4a4) 45%, transparent); }
+.dlw-hits i.dlw-on span { display: block; position: absolute; left: 50%; top: -6px; transform: translate(-50%, -100%);
+    padding: 2px 8px; border-radius: 10px; white-space: nowrap; font: 600 0.72rem var(--f-display);
+    background: var(--dl-primary, #ffb4a4); color: var(--dl-on_primary, #561f13); }
+
+/* 10 days: low to high on bars scaled across the ten days; today's dot is the temperature now. */
+.dlw-ten { list-style: none; margin: 8px 0 0; padding: 0; }
+.dlw-ten li { display: grid; grid-template-columns: 48px 30px 48px 34px minmax(30px, 1fr) 34px; align-items: center;
+    gap: 8px; padding: 5px 6px; margin: 0 -6px; border-radius: 12px; }
+.dlw-ten li + li { box-shadow: 0 -1px 0 color-mix(in srgb, var(--line) 60%, transparent); }
+.dlw-ten li:has(.dlw-wk b) .dlw-dn { color: var(--dl-tertiary, #dcc48c); font-weight: 600; }
+/* The day picked in the band. */
+.dlw-ten li.dlw-on, .dlw-ten li.dlw-on + li { box-shadow: none; }
+.dlw-ten li.dlw-on { background: var(--dl-tertiary_container, #554519); color: var(--dl-on_tertiary_container, #f9e0a6); }
+.dlw-ten li.dlw-on .dlw-lo, .dlw-ten li.dlw-on .dlw-dp, .dlw-ten li.dlw-on .dlw-dn { color: inherit; }
+.dlw-dn { font-size: 0.92rem; white-space: nowrap; }
+.dlw-ten .wi { width: 28px; height: 28px; }
+.dlw-dp { display: inline-flex; align-items: center; gap: 2px; font: 600 0.78rem var(--f-display);
+    color: var(--dl-on_surface_variant, #d8c2bd); white-space: nowrap; }
+.dlw-dp svg { width: 11px; height: 11px; fill: currentColor; }
+.dlw-dp-on { color: var(--dl-primary, #ffb4a4); }
+.dlw-lo, .dlw-hi { font: 700 0.95rem var(--f-display); text-align: right; font-variant-numeric: tabular-nums; }
+.dlw-lo { color: var(--dl-on_surface_variant, #d8c2bd); font-weight: 600; }
+.dlw-ten .dlw-wk { width: 100%; height: 6px; margin: 0; border-radius: 3px; }
+.dlw-ten .dlw-wk i { border-radius: 3px; }
+.dlw-ten .dlw-wk b { width: 10px; height: 10px; box-shadow: 0 0 0 2px var(--dl-surface_container_high, #322825); }
+
+/* Metrics grid: three columns; wind is tall (compass), sun and air quality are wide. */
+.dlw-d-grid { grid-area: grid; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-flow: row dense;
+    gap: 10px; padding: 0; background: none; }
+.dlw-tile { position: relative; display: flex; flex-direction: column; gap: 2px; min-width: 0; min-height: 94px;
+    padding: 12px 14px; border-radius: 20px; background: var(--dl-surface_container_high, #322825); }
+/* The tile picked in the band. */
+.dlw-tile.dlw-on { box-shadow: inset 0 0 0 2px var(--dl-primary, #ffb4a4); }
+.dlw-tl { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--dl-on_surface_variant, #d8c2bd); }
+.dlw-tl svg { width: 15px; height: 15px; fill: currentColor; flex: none; }
+.dlw-tv { font: 700 1.45rem/1.2 var(--f-display); font-variant-numeric: tabular-nums; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+.dlw-ts { font-size: 0.8rem; line-height: 1.3; color: var(--dl-on_surface_variant, #d8c2bd); }
+.dlw-trend { display: inline-flex; align-items: center; gap: 4px; }
+.dlw-trend svg { width: 14px; height: 14px; fill: currentColor; }
+.dlw-meter { position: relative; height: 6px; margin: 8px 6px 2px 0; border-radius: 3px;
+    background: linear-gradient(90deg, var(--dl-secondary, #e7bdb3), var(--dl-tertiary, #dcc48c), var(--dl-error, #ffb4ab)); }
+.dlw-meter b { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; transform: translate(-50%, -50%);
+    background: var(--dl-on_surface, #f1dfdb); box-shadow: 0 0 0 3px var(--dl-surface_container_high, #322825); }
+.dlw-wind { grid-row: span 2; }
+.dlw-compass { position: relative; width: 116px; height: 116px; margin: auto auto 0; }
+.dlw-compass svg { width: 100%; height: 100%; display: block; }
+.dlw-ring { fill: var(--dl-surface_container_highest, #3d3230); stroke: var(--dl-outline_variant, #534340); stroke-width: 1; }
+.dlw-ticks line { stroke: var(--dl-outline, #a08c88); stroke-width: 1.2; stroke-linecap: round; }
+.dlw-compass text { fill: var(--dl-on_surface_variant, #d8c2bd); font: 700 11px var(--f-display); text-anchor: middle; }
+.dlw-compass .dlw-arrow { position: absolute; inset: 0; }
+.dlw-compass .dlw-arrow svg { width: 40px; height: 40px; fill: var(--dl-primary, #ffb4a4); }
+.dlw-sun, .dlw-aqi { grid-column: span 2; }
+.dlw-sun .dlw-tv, .dlw-sun .dlw-ts { padding-right: 116px; }
+.dlw-aqi .dlw-ts { padding-right: 140px; }
+.dlw-sun .dlw-tv { font-size: 1.3rem; }
+.dlw-sun .dlw-ts, .dlw-aqi .dlw-ts { white-space: normal; }
+.dlw-nw { white-space: nowrap; }
+.dlw-narrow { display: none; }
+.dlw-to { margin: 0 4px; font: 500 0.8rem var(--f-body); font-style: normal; color: var(--dl-on_surface_variant, #d8c2bd); }
+.dlw-arc { position: absolute; right: 12px; bottom: 14px; width: 104px; }
+.dlw-arc-path { fill: none; stroke: var(--dl-outline, #a08c88); stroke-width: 1.5; stroke-dasharray: 3 4; }
+.dlw-arc-ground { stroke: var(--dl-outline_variant, #534340); stroke-width: 1.5; }
+.dlw-arc-sun { fill: var(--dl-tertiary, #dcc48c); stroke: var(--dl-surface_container_high, #322825); stroke-width: 3; }
+.dlw-moonpic { position: absolute; right: 14px; top: 14px; width: 40px; height: 40px; }
+.dlw-moon-dark { fill: var(--dl-surface_container_highest, #3d3230); stroke: var(--dl-outline_variant, #534340); }
+.dlw-moon-lit { fill: var(--dl-tertiary, #dcc48c); }
+.dlw-moon .dlw-tv { font-size: 1.15rem; padding-right: 46px; white-space: normal; }
+.dlw-aqi .dlw-meter { margin-right: 140px; }
+.dlw-bad .dlw-tv { color: var(--dl-error, #ffb4ab); }
+.dlw-pm { position: absolute; right: 14px; top: 12px; margin: 0; display: grid; grid-template-columns: auto auto; gap: 2px 10px;
+    font-size: 0.78rem; }
+.dlw-pm div { display: contents; }
+.dlw-pm dt { color: var(--dl-on_surface_variant, #d8c2bd); }
+.dlw-pm dd { margin: 0; font: 600 0.85rem var(--f-display); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Short screens (1366x768): a shorter chart, so the tiles start sooner. */
+@container lemon (max-height: 769px) {
+    .dlw-chart { height: 112px; margin-bottom: 22px; }
+    .dlw-d-head { padding: 14px 16px 10px 18px; }
+}
+/* Narrow detail (the center column of a 1366 wide screen or a 1100 wide window, up to 940 px): five columns. The chart across the top, the
+   10 days in the first two, the tiles (compact: no compass, sun arc or particle list, their words stay) three to a
+   row beside the days. Rich but fits 1366x768 and 1366x640 with no scroll. */
+@container dlwd (max-width: 940px) {
+    .dlw-d-body { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-areas: none; grid-auto-flow: row dense;
+        grid-auto-rows: max-content; gap: 8px; padding: 0 14px 14px; align-items: stretch; }
+    .dlw-d-chartsec { grid-column: 1 / -1; grid-row: 1; }
+    .dlw-d-days { grid-column: 1 / 3; grid-row: 2 / span 4; }
+    .dlw-d-grid { display: contents; }
+    .dlw-d-head { gap: 14px; }
+    .dlw-d-head .dlw-temp { font-size: 48px; }
+    .dlw-detail .dlw-shape.dlw-small { width: 64px; height: 64px; flex-basis: 64px; }
+    .dlw-d-sec { padding: 10px 14px 10px; }
+    .dlw-legend { font-size: 0.74rem; }
+    .dlw-chart { height: 150px; margin: 10px 2px 22px; }
+    .dlw-chart:has(.dlw-on) { margin-top: 26px; }
+    .dlw-ten { margin-top: 4px; }
+    .dlw-ten li { grid-template-columns: 36px 24px 42px 30px minmax(16px, 1fr) 30px; gap: 5px; padding: 2px 6px; }
+    .dlw-ten .wi { width: 24px; height: 24px; }
+    .dlw-dn { font-size: 0.88rem; }
+    .dlw-lo, .dlw-hi { font-size: 0.9rem; }
+    .dlw-tile { min-height: 0; padding: 7px 10px 8px; border-radius: 16px; gap: 1px; }
+    .dlw-tl { font-size: 0.76rem; }
+    .dlw-tv { font-size: 1.15rem; }
+    .dlw-ts { font-size: 0.76rem; line-height: 1.25; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+        overflow: hidden; }
+    .dlw-wind { grid-row: auto; }
+    .dlw-sun, .dlw-aqi { grid-column: auto; }
+    .dlw-compass, .dlw-arc, .dlw-pm, .dlw-t-feels, .dlw-t-dew, .dlw-wide { display: none; }
+    .dlw-narrow { display: inline; }
+    .dlw-sun .dlw-tv, .dlw-sun .dlw-ts, .dlw-aqi .dlw-ts { padding-right: 0; }
+    .dlw-sun .dlw-tv { font-size: 1rem; white-space: normal; line-height: 1.2; }
+    .dlw-to { margin: 0; }
+    .dlw-meter { margin: 5px 4px 1px 0; height: 5px; }
+    .dlw-aqi .dlw-meter { margin-right: 4px; }
+    .dlw-moonpic { width: 26px; height: 26px; top: 8px; right: 10px; }
+    .dlw-moon .dlw-tv { font-size: 1rem; padding-right: 28px; white-space: normal; line-height: 1.15; }
+}
+/* 1366x768: the compact layout's chart a little shorter, so the 10 days and the tiles fit without scrolling. */
+@container lemon (max-height: 769px) {
+    .dlw-chart { height: 116px; }
+}
+/* Very short pages (1366x640): a shorter chart and header. */
+@container lemon (max-height: 620px) {
+    .dlw-chart { height: 72px; margin-bottom: 20px; }
+    .dlw-d-head { padding: 10px 14px 8px 16px; }
+    .dlw-d-head .dlw-temp { font-size: 42px; }
+    .dlw-detail .dlw-shape.dlw-small { width: 54px; height: 54px; flex-basis: 54px; }
+    .dlw-d-head .dlw-cond { font-size: 1.15rem; -webkit-line-clamp: 1; }
+}
+/* Very narrow (small windows): the days across, the tiles two to a row under them. */
+@container dlwd (max-width: 560px) {
+    .dlw-d-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dlw-d-days { grid-column: 1 / -1; grid-row: auto; }
+}
+
+/* Open-Meteo attribution (CC BY 4.0), the last line of the detail view. */
+.dlw-credit { grid-column: 1 / -1; margin: -6px 0 0; text-align: right; font-size: 0.75rem; color: var(--text-2); }
+.dlw-credit a { color: var(--dl-primary, #ffb4a4); text-decoration: none; }
+.dlw-credit a:hover, .dlw-credit a:focus-visible { text-decoration: underline; }

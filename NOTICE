@@ -1,0 +1,34 @@
+Material Desk
+Licensed under the GNU General Public License, version 3 (see LICENSE).
+
+This product includes or is based on the following third-party work:
+
+1. Cookie clock design
+   The clock (extension/scripts/cookie-clock.js) follows the design of the CookieClock widget of
+   dots-hyprland (illogical-impulse) by end-4, https://github.com/end-4/dots-hyprland
+   License: GNU General Public License v3.0.
+
+2. Material shapes
+   The outlines of the clock's cookie, the date bubbles and the weather icon shapes were exported from a port of
+   the Material shapes library (androidx graphics-shapes), as used by dots-hyprland.
+   Copyright The Android Open Source Project. License: Apache License 2.0.
+
+3. material-color-utilities
+   extension/vendor/material-color-utilities.js is a bundle of @material/material-color-utilities 0.4.0,
+   https://github.com/material-foundation/material-color-utilities
+   Copyright 2021 Google LLC. License: Apache License 2.0 (extension/vendor/LICENSE-material-color-utilities.txt).
+
+4. Fonts (Latin subsets, converted to WOFF2)
+   Space Grotesk, Copyright 2020 The Space Grotesk Project Authors
+   (https://github.com/floriankarsten/space-grotesk). License: SIL Open Font License 1.1
+   (extension/fonts/OFL-SpaceGrotesk.txt).
+   Google Sans Flex, Copyright 2015 The Google Sans Flex Authors
+   (https://github.com/googlefonts/googlesans-flex). License: SIL Open Font License 1.1
+   (extension/fonts/OFL-GoogleSansFlex.txt).
+
+5. Weather data
+   Weather data by Open-Meteo.com (https://open-meteo.com/), licensed under Creative Commons Attribution 4.0
+   International (CC BY 4.0). Attribution is shown in the weather detail view and in Settings > About.
+
+6. Built-in wallpapers
+   extension/wallpapers/*.svg are drawn by tools/wallpapers.py, part of this project (GPL-3.0).

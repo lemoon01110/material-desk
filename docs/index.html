@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Material Desk: a calm new tab for Chrome</title>
+<meta name="description" content="Material Desk is a free, open source new tab for Chrome with a cookie clock, search, weather, to-dos and bookmarks in Material You colors.">
+<style>
+:root {
+    --surface: #141218; --surface-cont: #211f26; --surface-high: #2b2930;
+    --on-surface: #e6e0e9; --on-variant: #cac4d0; --outline: #49454f;
+    --primary: #d0bcff; --on-primary: #381e72; --primary-cont: #4f378b; --on-primary-cont: #eaddff;
+    --secondary-cont: #4a4458; --on-secondary-cont: #e8def8; --tertiary: #efb8c8;
+    color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--surface); }
+body {
+    margin: 0; color: var(--on-surface); min-height: 100vh;
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, sans-serif;
+    background: radial-gradient(1200px 600px at 50% -10%, #2a2340 0%, var(--surface) 60%);
+}
+a { color: var(--primary); text-underline-offset: 3px; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 64px 20px 56px; text-align: center; }
+.cookie { width: 112px; height: 112px; fill: var(--primary-cont); display: block; margin: 0 auto 22px; }
+h1 { font-size: clamp(2.2rem, 6vw, 3.4rem); font-weight: 500; line-height: 1.1; margin: 0 0 12px; }
+.lead { font-size: 1.15rem; color: var(--on-variant); max-width: 620px; margin: 0 auto 30px; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 44px; }
+.btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: 999px;
+    font-weight: 600; text-decoration: none; transition: filter .15s;
+}
+.btn:hover { filter: brightness(1.1); }
+.btn-filled { background: var(--primary); color: var(--on-primary); }
+.btn-tonal { background: var(--secondary-cont); color: var(--on-secondary-cont); }
+.btn-outline { border: 1px solid var(--outline); color: var(--primary); }
+.btn[aria-disabled="true"] { opacity: .6; pointer-events: none; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; text-align: left; }
+.card { background: var(--surface-cont); border-radius: 24px; padding: 20px 22px; }
+.card h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 6px; color: var(--primary); }
+.card p { margin: 0; color: var(--on-variant); }
+.privacy { margin-top: 14px; background: var(--primary-cont); color: var(--on-primary-cont); text-align: left; }
+.privacy h2 { color: var(--on-primary-cont); }
+.privacy p { color: var(--on-primary-cont); }
+.privacy a { color: var(--on-primary-cont); font-weight: 600; }
+footer { color: var(--on-variant); font-size: .92rem; margin-top: 40px; }
+footer a { margin: 0 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <svg class="cookie" viewBox="0 0 1 1" aria-hidden="true"><path d="M0.92409 0.74485C0.91128 0.76703 0.88955 0.78405 0.8623 0.79001C0.82615 0.79792 0.79792 0.82615 0.79001 0.8623C0.7781 0.91679 0.7219 0.94923 0.66875 0.93231C0.6335 0.92108 0.59493 0.93142 0.57001 0.95877C0.53244 1 0.46756 1 0.42999 0.95877C0.40507 0.93142 0.3665 0.92108 0.33125 0.93231C0.2781 0.94923 0.2219 0.91679 0.20999 0.8623C0.20208 0.82615 0.17385 0.79792 0.1377 0.79001C0.08321 0.7781 0.05077 0.7219 0.06769 0.66875C0.07892 0.6335 0.06858 0.59493 0.04123 0.57001C0 0.53244 0 0.46756 0.04123 0.42999C0.06858 0.40507 0.07892 0.3665 0.06769 0.33125C0.05077 0.2781 0.08321 0.2219 0.1377 0.20999C0.17385 0.20208 0.20208 0.17385 0.20999 0.1377C0.2219 0.08321 0.2781 0.05077 0.33125 0.06769C0.3665 0.07892 0.40507 0.06858 0.42999 0.04123C0.46756 0 0.53244 0 0.57001 0.04123C0.59493 0.06858 0.6335 0.07892 0.66875 0.06769C0.7219 0.05077 0.7781 0.08321 0.79001 0.1377C0.79792 0.17385 0.82615 0.20208 0.8623 0.20999C0.91679 0.2219 0.94923 0.2781 0.93231 0.33125C0.92108 0.3665 0.93142 0.40507 0.95877 0.42999C1 0.46756 1 0.53244 0.95877 0.57001C0.93142 0.59493 0.92108 0.6335 0.93231 0.66875C0.94077 0.69533 0.93689 0.72266 0.92409 0.74485Z"/></svg>
+    <h1>Material Desk</h1>
+    <p class="lead">A calm new tab for Chrome: a cookie clock, search, weather, to-dos and bookmarks, colored from a wallpaper you choose. Free, open source, and your data stays on your device.</p>
+
+    <div class="actions">
+        <!-- Replace href with the Chrome Web Store listing URL once the item is published, and remove aria-disabled. -->
+        <a class="btn btn-filled" href="#" aria-disabled="true" title="Coming soon">Chrome Web Store (coming soon)</a>
+        <a class="btn btn-tonal" href="https://github.com/lemoon01110/material-desk">Source on GitHub</a>
+        <a class="btn btn-outline" href="privacy.html">Privacy policy</a>
+    </div>
+
+    <div class="grid">
+        <div class="card"><h2>Cookie clock</h2><p>A round Material 3 clock and date, in the style of the End4 desktop.</p></div>
+        <div class="card"><h2>Search</h2><p>A long search bar with suggestions and six engines to choose from.</p></div>
+        <div class="card"><h2>Weather</h2><p>Now, the next hours and 10 days, plus air quality, from Open-Meteo.</p></div>
+        <div class="card"><h2>To-dos</h2><p>Lists, due dates, priorities, tags, subtasks and repeating tasks.</p></div>
+        <div class="card"><h2>Bookmarks</h2><p>Browse, search and edit your Chrome bookmarks in a grid or list.</p></div>
+        <div class="card"><h2>Your colors</h2><p>Material You colors from a built-in wallpaper or your own picture.</p></div>
+    </div>
+
+    <div class="card privacy">
+        <h2>Private by design</h2>
+        <p>No account, no analytics, no ads. Your settings, to-dos and wallpaper stay in your browser. Only the weather and search suggestion services get what they need to answer. <a href="privacy.html">Read the privacy policy</a>.</p>
+    </div>
+
+    <footer>
+        <a href="https://github.com/lemoon01110/material-desk">GitHub</a>
+        <a href="https://github.com/lemoon01110/material-desk/issues">Support</a>
+        <a href="privacy.html">Privacy</a>
+        <p>Released under the GPL-3.0 license.</p>
+    </footer>
+</div>
+</body>
+</html>

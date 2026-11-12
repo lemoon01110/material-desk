@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>New Tab</title>
+    <link id="favicon" rel="icon" href="icons/icon48.png">
+    <script src="scripts/lemon.js"></script>
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/clock.css">
+    <link rel="stylesheet" href="styles/center.css">
+    <link rel="stylesheet" href="styles/weather.css">
+    <link rel="stylesheet" href="styles/todo.css">
+    <link rel="stylesheet" href="styles/bookmarks.css">
+    <link rel="stylesheet" href="styles/settings.css">
+    <link rel="stylesheet" href="styles/keys.css">
+</head>
+<body>
+    <div class="lemon">
+        <!-- Left: to-do (scripts/todo.js) -->
+        <aside id="todo-col" class="panel" aria-label="To-do"></aside>
+
+        <!-- Center: clock, date, search, weather -->
+        <main id="center">
+            <div id="clock-host"></div>
+            <div id="dlDate"></div>
+            <div id="search-host"></div>
+            <div id="weather-host"></div>
+        </main>
+
+        <!-- Right: bookmarks, Google apps, settings (scripts/bookmarks.js, scripts/settings.js) -->
+        <aside id="right-col" class="panel" aria-label="Bookmarks and settings">
+            <div id="bookmarks-host"></div>
+            <div id="apps-host"></div>
+            <div id="settings-host"></div>
+        </aside>
+    </div>
+
+    <script src="scripts/open-meteo.js"></script>
+    <script src="scripts/cookie-clock.js"></script>
+    <script src="scripts/center.js"></script>
+    <script src="scripts/weather-card.js"></script>
+    <script src="scripts/todo.js"></script>
+    <script src="scripts/bookmarks.js"></script>
+    <script src="scripts/settings.js"></script>
+    <script src="scripts/wallpaper.js"></script>
+    <script src="scripts/collapse.js"></script>
+    <script src="scripts/keys.js"></script>
+</body>
+</html>

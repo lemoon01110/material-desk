@@ -1,0 +1,228 @@
+/* Bundled fonts (fonts/, SIL Open Font License 1.1, Latin subsets). */
+@font-face { font-family: "Space Grotesk"; font-weight: 300 700; font-display: block;
+    src: url("../fonts/SpaceGrotesk-latin.woff2") format("woff2"); }
+@font-face { font-family: "Google Sans Flex"; font-weight: 300 900; font-display: block;
+    src: url("../fonts/GoogleSansFlex-latin.woff2") format("woff2"); }
+
+/* Material Desk: tokens and page layout. Colors are the Material 3 roles as --dl-<role> (set by scripts/lemon.js);
+   every rule gives a fallback from the current palette so the page still reads before the look loads. */
+:root {
+    --f-display: "Space Grotesk", sans-serif;          /* numbers, headings (bundled in fonts/) */
+    --f-body: "Google Sans Flex", sans-serif;          /* everything else (bundled; a managed look may override it) */
+    --r-xl: 32px; --r-lg: 24px; --r-md: 16px; --r-sm: 10px; --r-pill: 999px;
+    --gap: 16px;
+    --side-w: 320px;  /* normal column width */
+    --panel-alpha: 88%;
+    --panel: color-mix(in srgb, var(--dl-surface_container, #271d1b) var(--panel-alpha), transparent);
+    --card: color-mix(in srgb, var(--dl-surface_container_high, #322825) var(--panel-alpha), transparent);
+    --raised: var(--dl-surface_container_highest, #3d3230);
+    --text: var(--dl-on_surface, #f1dfdb);
+    --text-2: var(--dl-on_surface_variant, #d8c2bd);
+    --line: var(--dl-outline_variant, #534340);
+    --shadow: 0 2px 12px rgb(0 0 0 / 0.28);
+    color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+    /* The wallpaper (--bg-image, set by lemon.js; may be two layers: the picture and a small placeholder under it),
+       under a shade of the surface color, --bg-dim strong (the Dim slider in Settings). */
+    --bg-shade: color-mix(in srgb, var(--dl-surface, #1a110f) var(--bg-dim, 0%), transparent);
+    background-color: var(--dl-surface, #1a110f);
+    background-image: linear-gradient(var(--bg-shade), var(--bg-shade)), var(--bg-image, none);
+    background-position: center; background-size: cover; background-repeat: no-repeat; background-attachment: fixed;
+    color: var(--text); font: 15px/1.4 var(--f-body);
+    overflow: hidden;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--dl-primary, #ffb4a4); outline-offset: 2px; }
+::selection { background: var(--dl-primary_container, #733427); color: var(--dl-on_primary_container, #ffdad3); }
+input, textarea { caret-color: var(--dl-primary, #ffb4a4); }
+::placeholder { color: var(--text-2); opacity: 0.8; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* Three columns: to-do | center | bookmarks. Side columns are full-height glass panels. */
+.lemon {
+    display: grid; height: 100%; gap: var(--gap); padding: var(--gap);
+    /* 100% not 100vh: the page runs under html { zoom: 0.8 }, which shrinks vh too. Size container for the
+       short-screen rule below, so it measures the page's own px, not the zoomed viewport. */
+    container: lemon / size;
+    grid-template-columns: var(--side-w) minmax(0, 1fr) var(--side-w);
+    /* One row that never grows past the page, so a tall center can't push the panels off the bottom edge. */
+    grid-template-rows: minmax(0, 1fr);
+}
+/* With only one side column hidden, its track stays (empty), so the clock stays centered on the screen. */
+.no-todo.no-bookmarks .lemon { grid-template-columns: 0 minmax(0, 1fr) 0; }
+.no-todo #todo-col { display: none; }
+/* Fixed tracks, so a hidden column never pulls the center into a 0-wide track. */
+#todo-col { grid-area: 1 / 1; } #center { grid-area: 1 / 2; } #right-col { grid-area: 1 / 3; }
+
+.panel {
+    background: var(--panel); border-radius: var(--r-xl); box-shadow: var(--shadow);
+    backdrop-filter: blur(18px) saturate(1.1);
+    min-height: 0; overflow: hidden; display: flex; flex-direction: column;
+}
+/* Shared building blocks for the columns (optional to use). */
+.panel-head { display: flex; align-items: center; gap: 10px; padding: 20px 20px 12px; }
+.panel-title { font: 700 1.35rem/1 var(--f-display); margin: 0; letter-spacing: -0.01em; }
+.panel-body { flex: 1; min-height: 0; overflow: auto; padding: 0 12px 16px; scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent; }
+.icon-btn { width: 36px; height: 36px; border-radius: var(--r-pill); border: 0; display: grid; place-items: center;
+    background: transparent; color: var(--text-2); }
+.icon-btn:hover { background: var(--raised); color: var(--text); }
+.icon-btn svg { width: 20px; height: 20px; fill: currentColor; }
+.chip { border: 0; border-radius: var(--r-pill); padding: 6px 12px; background: var(--raised); color: var(--text-2);
+    font-size: 0.85rem; }
+.chip[aria-pressed="true"], .chip.on { background: var(--dl-secondary_container, #5d3f39);
+    color: var(--dl-on_secondary_container, #ffdad3); }
+.field { width: 100%; border: 0; outline: 0; border-radius: var(--r-pill); padding: 10px 16px;
+    background: var(--raised); color: var(--text); }
+.field:focus { box-shadow: inset 0 0 0 2px var(--dl-primary, #ffb4a4); }
+.btn-filled { border: 0; border-radius: var(--r-pill); padding: 8px 18px; font-weight: 600;
+    background: var(--dl-primary, #ffb4a4); color: var(--dl-on_primary, #561f13); }
+.btn-tonal { border: 0; border-radius: var(--r-pill); padding: 8px 18px; font-weight: 600;
+    background: var(--dl-primary_container, #733427); color: var(--dl-on_primary_container, #ffdad3); }
+.empty { color: var(--text-2); text-align: center; padding: 24px 16px; }
+
+/* Center column: clock on top, long search bar, weather. */
+#center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+    min-width: 0; padding-bottom: 6cqh; }
+#clock-host { position: relative; width: 300px; height: 300px; flex: none; }
+#search-host, #weather-host { width: min(720px, 100%); }
+.no-weather #weather-host { display: none; }
+
+/* Short screens (1366x768 and similar): a smaller clock and tighter gaps so the center never touches the top edge. */
+@container lemon (max-height: 820px) {
+    #center { gap: 16px; padding-bottom: 2cqh; }
+    #clock-host { width: 250px; height: 250px; }
+    #clock-host #cookieClock { zoom: 1.08; }
+}
+/* Very short pages (1366x768 with Chrome's toolbars and bookmarks bar): smaller still, and the weather card drops
+   its hourly row, so nothing is cut at the bottom. */
+@container lemon (max-height: 680px) {
+    #center { gap: 10px; padding-bottom: 0; }
+    #clock-host { width: 200px; height: 200px; }
+    #clock-host #cookieClock { zoom: 0.87; }
+}
+
+/* Folding and widening the side columns (scripts/collapse.js). Presets: folded rail (64px), normal (--side-w),
+   wide (half the page). Folding keeps the track, so the center does not move; widening takes the track to half. */
+.lemon { position: relative; }
+/* Wide: the column covers half the page, over the center's widgets; the grid itself does not change, so the center stays put underneath. */
+.wide-todo #todo-col, .wide-bookmarks #right-col {
+    grid-area: auto; position: absolute; top: var(--gap); bottom: var(--gap); z-index: 5;
+    width: calc(50% - 1.5 * var(--gap)); box-shadow: 0 12px 40px rgb(0 0 0 / 0.45);
+    background: color-mix(in srgb, var(--dl-surface_container, #271d1b) 96%, transparent);
+}
+.wide-todo #todo-col { left: var(--gap); } .wide-bookmarks #right-col { right: var(--gap); }
+.fold-rail { display: none; }
+.fold-todo #todo-col, .fold-bookmarks #right-col { width: 64px; padding: 0; }
+.fold-todo #todo-col { justify-self: start; } .fold-bookmarks #right-col { justify-self: end; }
+.fold-todo #todo-col > :not(.fold-rail), .fold-bookmarks #right-col > :not(.fold-rail) { display: none !important; }
+.fold-todo #todo-col > .fold-rail, .fold-bookmarks #right-col > .fold-rail {
+    display: grid; place-items: start center; width: 100%; height: 100%; padding-top: 22px; border: 0;
+    background: transparent; color: var(--dl-primary, #ffb4a4);
+}
+.fold-rail svg { width: 26px; height: 26px; fill: currentColor; }
+.fold-rail:hover { background: var(--raised); }
+/* The handle: a tall pill centered in the gap (and top to bottom), its arrow centered in it. */
+.fold-handle {
+    position: absolute; top: 50%; z-index: 4; width: 22px; height: 140px; padding: 0; border: 0;
+    translate: -50% -50%; border-radius: var(--r-pill); display: grid; place-items: center;
+    background: var(--card); color: var(--text-2); box-shadow: var(--shadow); opacity: 0.6; transition: opacity 0.15s;
+}
+.fold-handle svg { width: 18px; height: 18px; fill: currentColor; display: block; }
+.fold-handle:hover, .fold-handle:focus-visible { opacity: 1; color: var(--text); }
+/* Center of the gap: left edge + gap + column + half a gap (percentages are of the padded grid box). */
+.fold-left { left: calc(var(--gap) + var(--side-w) + var(--gap) / 2); }
+.fold-right { left: calc(100% - var(--gap) - var(--side-w) - var(--gap) / 2); }
+.wide-todo .fold-left, .wide-bookmarks .fold-right { left: 50%; z-index: 6; }
+.fold-todo .fold-left { left: calc(var(--gap) + 64px + var(--gap) / 2); }
+.fold-bookmarks .fold-right { left: calc(100% - var(--gap) - 64px - var(--gap) / 2); }
+.no-todo .fold-left, .no-bookmarks .fold-right { display: none; }
+
+/* Narrow windows (scripts/collapse.js sets .narrow): the grid keeps only rail-wide tracks, and each column keeps
+   its saved state (a new tab or window never opens with a column unexpectedly closed): folded shows
+   its icon, open floats over the page at its size (normal or half), with its grip. */
+.narrow .lemon { grid-template-columns: 64px minmax(0, 1fr) 64px; }
+.narrow:not(.fold-todo) #todo-col, .narrow:not(.fold-bookmarks) #right-col {
+    grid-area: auto; position: absolute; top: var(--gap); bottom: var(--gap); z-index: 5;
+    box-shadow: 0 12px 40px rgb(0 0 0 / 0.5);
+    background: color-mix(in srgb, var(--dl-surface_container, #271d1b) 96%, transparent);
+}
+.narrow:not(.fold-todo) #todo-col { left: var(--gap); } .narrow:not(.fold-bookmarks) #right-col { right: var(--gap); }
+.narrow .fold-left, .narrow .fold-right { z-index: 6; }
+
+/* Snap animation (drag the handle and the column snaps to a preset): the columns size by an
+   explicit width, so normal (--side-w), folded (64px) and wide (half the page) all animate. */
+#todo-col, #right-col { width: var(--side-w); transition: width 0.32s cubic-bezier(0.2, 0.9, 0.25, 1); }
+#todo-col { justify-self: start; } #right-col { justify-self: end; }
+.fold-handle { transition: left 0.32s cubic-bezier(0.2, 0.9, 0.25, 1), opacity 0.15s; cursor: grab; touch-action: none; }
+.fold-handle.dragging { transition: none; cursor: grabbing; opacity: 1; }
+.fold-handle svg { width: 14px; height: 14px; }
+/* Fits inside the 16px gap, so it never overlaps the column or the center. */
+.fold-handle { width: 14px; }
+/* Folded: just the icon, no panel strip. */
+.fold-todo #todo-col, .fold-bookmarks #right-col { background: transparent; box-shadow: none; backdrop-filter: none; }
+.fold-todo #todo-col > .fold-rail, .fold-bookmarks #right-col > .fold-rail {
+    width: 52px; height: 52px; padding: 0; margin: 4px 6px; place-items: center; border-radius: 18px;
+    background: var(--card); box-shadow: var(--shadow); backdrop-filter: blur(14px);
+}
+.fold-todo #todo-col > .fold-rail:hover, .fold-bookmarks #right-col > .fold-rail:hover { background: var(--raised); }
+.fold-bookmarks #right-col { align-items: flex-end; }
+.fold-todo .fold-left { left: calc(var(--gap) + 64px + var(--gap) / 2); }
+@media (prefers-reduced-motion: reduce) { #todo-col, #right-col, .fold-handle { transition: none; } }
+
+/* While a grip is dragged (collapse.js): the column floats at the live width, attached to the grip, no animation. */
+.resizing-todo #todo-col, .resizing-bookmarks #right-col {
+    grid-area: auto; position: absolute; top: var(--gap); bottom: var(--gap); z-index: 5; transition: none !important;
+    box-shadow: 0 12px 40px rgb(0 0 0 / 0.45);
+    background: color-mix(in srgb, var(--dl-surface_container, #271d1b) 96%, transparent);
+}
+.resizing-todo #todo-col { left: var(--gap); } .resizing-bookmarks #right-col { right: var(--gap); }
+.resizing-todo .fold-left, .resizing-bookmarks .fold-right { z-index: 6; }
+
+/* Folded: no lone grip in the gap; the icon is the handle (click to open, drag to pull the column out). While a
+   column is being dragged out, its grip shows again at the moving edge. */
+.fold-todo:not(.resizing-todo) .fold-left, .fold-bookmarks:not(.resizing-bookmarks) .fold-right { display: none; }
+.fold-todo #todo-col > .fold-rail, .fold-bookmarks #right-col > .fold-rail { touch-action: none; }
+
+/* Both columns wide: each takes half less a gap, so their grips sit side by side in the middle, each on its own
+   column's edge. */
+.wide-todo.wide-bookmarks #todo-col, .wide-todo.wide-bookmarks #right-col { width: calc(50% - 2 * var(--gap)); }
+.wide-todo.wide-bookmarks .fold-left { left: calc(50% - var(--gap) / 2); }
+.wide-todo.wide-bookmarks .fold-right { left: calc(50% + var(--gap) / 2); }
+
+/* No animation while a new tab paints (collapse.js removes .lemon-loading once the layout is settled). */
+.lemon-loading *, .lemon-loading *::before, .lemon-loading *::after { transition: none !important; animation: none !important; }
+
+/* Due badge on the folded to-do icon (collapse.js). */
+.fold-rail { position: relative; }
+.fold-badge { position: absolute; top: -4px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px;
+    border-radius: var(--r-pill); display: grid; place-items: center; font: 700 0.72rem/1 var(--f-display);
+    background: var(--dl-tertiary, #dcc48c); color: var(--dl-on_tertiary, #3c2f04);
+    box-shadow: 0 0 0 2px var(--dl-surface, #1a110f); pointer-events: none; }
+.fold-badge[hidden] { display: none; }
+.fold-badge.urgent { background: var(--dl-error, #ffb4ab); color: var(--dl-on_error, #690005); }
+.fold-badge.soon { animation: fold-pulse 1.6s ease-in-out 3; }
+@keyframes fold-pulse { 50% { box-shadow: 0 0 0 2px var(--dl-surface, #1a110f), 0 0 0 7px color-mix(in srgb, var(--dl-error, #ffb4ab) 35%, transparent); } }
+.fold-todo #todo-col, .fold-bookmarks #right-col { overflow: visible; }
+
+/* Full: one column covers the whole page (collapse.js); the other column and its grip hide under it. */
+.full-todo #todo-col, .full-bookmarks #right-col {
+    grid-area: auto; position: absolute; top: var(--gap); bottom: var(--gap); z-index: 7;
+    width: calc(100% - 2 * var(--gap)); box-shadow: 0 12px 40px rgb(0 0 0 / 0.45);
+    background: color-mix(in srgb, var(--dl-surface_container, #271d1b) 97%, transparent);
+}
+.full-todo #todo-col { left: var(--gap); } .full-bookmarks #right-col { right: var(--gap); }
+.full-todo .fold-left { left: calc(100% - var(--gap) / 2); z-index: 8; }
+.full-bookmarks .fold-right { left: calc(var(--gap) / 2); z-index: 8; }
+.full-todo #right-col, .full-todo .fold-right, .full-bookmarks #todo-col, .full-bookmarks .fold-left { visibility: hidden; }
+/* Clickable column titles. */
+.fold-title { cursor: pointer; border-radius: var(--r-sm); }
+.fold-title:hover { color: var(--dl-primary, #ffb4a4); }
+/* Full width: view tabs keep their normal size (same as the wide rule in todo.css). */
+.full-todo .td-seg { flex: 0 0 auto; padding: 0 14px; }
+.full-todo .td-views { width: fit-content; }

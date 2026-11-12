@@ -1,0 +1,22 @@
+/* Cookie clock after End4's dots-hyprland (scripts/cookie-clock.js): sizes from CookieClock.qml, colors via --dl-* roles. */
+#cookieClock { position: absolute; inset: 0; margin: auto; width: 230px; height: 230px; zoom: 1.3; }
+#cookieClock .cc-layer { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+#cookieClock .cc-cookie { fill: var(--dl-primary_container, #004d67); }
+#cookieClock .cc-shadow { filter: drop-shadow(0 0 4px rgb(0 0 0 / 0.3)); }
+#cookieClock .cc-mark { fill: color-mix(in srgb, var(--dl-secondary, #b4cad6) 15%, var(--dl-primary_container, #004d67)); }
+#cookieClock .cc-column { position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; font-family: "Space Grotesk", sans-serif; font-weight: 700;
+    color: color-mix(in srgb, var(--dl-primary, #8ecff2) 55%, var(--dl-primary_container, #004d67));
+    font-size: 68px; line-height: 1.28; font-variant-numeric: tabular-nums; }
+#cookieClock .cc-column span + span { margin-top: -16px; }
+#cookieClock .cc-column .cc-ampm { font-size: 26px; }
+#cookieClock .cc-hour { fill: none; stroke: var(--dl-primary, #8ecff2); stroke-width: 4; }
+#cookieClock .cc-minute, #cookieClock .cc-center { fill: var(--dl-tertiary, #c2c2eb); }
+#cookieClock .cc-second { fill: var(--dl-primary, #8ecff2); }
+#cookieClock .cc-day { fill: var(--dl-tertiary_container, #424465); }
+#cookieClock .cc-month { fill: var(--dl-secondary_container, #354a54); }
+#cookieClock text { font-family: "Space Grotesk", sans-serif; font-weight: 700; font-size: 30px;
+    text-anchor: middle; dominant-baseline: central; }
+#cookieClock .cc-daytext { fill: var(--dl-on_tertiary_container, #e1e0ff); }
+#cookieClock .cc-monthtext { fill: var(--dl-on_secondary_container, #d0e6f2); }
+.no-showSeconds #cookieClock .cc-second { display: none; }

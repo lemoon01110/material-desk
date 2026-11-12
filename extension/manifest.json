@@ -1,0 +1,37 @@
+{
+ "manifest_version": 3,
+ "name": "Material Desk",
+ "version": "4.0.0.23",
+ "description": "A calm Material You new tab: cookie clock, weather, to-do list and bookmarks, colored from your wallpaper.",
+ "permissions": [
+  "storage",
+  "bookmarks",
+  "favicon",
+  "geolocation",
+  "search"
+ ],
+ "host_permissions": [
+  "https://www.google.com/complete/search*",
+  "https://duckduckgo.com/ac/*",
+  "https://api.open-meteo.com/*",
+  "https://geocoding-api.open-meteo.com/*",
+  "https://api.bigdatacloud.net/*",
+  "https://ipinfo.io/*",
+  "https://air-quality-api.open-meteo.com/*"
+ ],
+ "chrome_url_overrides": {
+  "newtab": "index.html"
+ },
+ "background": {
+  "service_worker": "scripts/background.js"
+ },
+ "icons": {
+  "16": "icons/icon16.png",
+  "48": "icons/icon48.png",
+  "128": "icons/icon128.png"
+ },
+ "incognito": "split",
+ "storage": {
+  "managed_schema": "schema.json"
+ }
+}

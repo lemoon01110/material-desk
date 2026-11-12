@@ -1,0 +1,32 @@
+{
+  "type": "object",
+  "properties": {
+    "colors": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "background": {
+      "type": "string"
+    },
+    "font": {
+      "type": "string"
+    },
+    "shade": {
+      "type": "number"
+    },
+    "showSites": {
+      "type": "boolean"
+    },
+    "myntScale": {
+      "type": "number"
+    },
+    "scale": {
+      "type": "number"
+    },
+    "page": {
+      "type": "string"
+    }
+  }
+}
