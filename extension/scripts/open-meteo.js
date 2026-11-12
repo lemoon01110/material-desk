@@ -104,7 +104,9 @@
                 `&longitude=${p.lon}&current=us_aqi,pm2_5,pm10,ozone&timezone=auto`);
             if (!r.ok) return null;
             const c = (await r.json()).current;
-            return c && c.us_aqi != null ? { aqi: c.us_aqi, pm25: c.pm2_5, pm10: c.pm10, ozone: c.ozone } : null;
+            // Numbers only: anything else from the service becomes null (the card shows a dash).
+            const n = (x) => (x == null || x === "" || !Number.isFinite(+x) ? null : +x);
+            return c && n(c.us_aqi) != null ? { aqi: n(c.us_aqi), pm25: n(c.pm2_5), pm10: n(c.pm10), ozone: n(c.ozone) } : null;
         } catch (e) { return null; }
     }
 
@@ -118,6 +120,9 @@
     window.weatherText = (code, isDay) => code === 0 && isDay ? "Sunny" : (CODES[code] || [0, "Cloudy"])[1];
     window.openMeteoForecast = async function (location) {
         const p = await place(location);
+        // Coordinates go into request URLs: numbers only.
+        p.lat = +p.lat; p.lon = +p.lon;
+        if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) throw new Error("Place not found");
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}` +
             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,is_day,wind_speed_10m," +
             "wind_direction_10m,wind_gusts_10m,cloud_cover,pressure_msl,precipitation,uv_index,visibility,dew_point_2m" +
@@ -126,26 +131,44 @@
             "precipitation_sum,sunrise,sunset,uv_index_max,daylight_duration" +
             "&timezone=auto&forecast_days=10&past_hours=3&forecast_hours=30";
         const [d, aq] = await Promise.all([json(url), air(p)]);
-        if (!d.current || !d.hourly || !d.daily) throw new Error(d.reason || "No forecast");
+        if (!d.current || !d.hourly || !d.daily || !Array.isArray(d.hourly.time) || !Array.isArray(d.daily.time)) throw new Error(d.reason || "No forecast");
         const c = d.current, h = d.hourly, dl = d.daily;
         // The hour the current conditions fall in (the last hourly time not after now).
         let at = 0;
         h.time.forEach((t, i) => { if (t <= c.time) at = i; });
         const hours = h.time.slice(at, at + 25).map((t, k) => {
             const i = at + k;
-            return { time: t, temp: h.temperature_2m[i], code: h.weather_code[i], isDay: h.is_day[i],
-                rain: h.precipitation_probability[i] ?? 0, mm: h.precipitation[i] ?? 0 };
+            return { time: t, temp: h.temperature_2m?.[i], code: h.weather_code?.[i], isDay: h.is_day?.[i],
+                rain: h.precipitation_probability?.[i] ?? 0, mm: h.precipitation?.[i] ?? 0 };
         });
         // Pressure change over the last 3 hours (hPa), for rising / falling / steady.
-        const before = h.pressure_msl[Math.max(at - 3, 0)];
+        const pb = h.pressure_msl?.[Math.max(at - 3, 0)];
+        const before = pb != null && pb !== "" && Number.isFinite(+pb) ? +pb : null;
         const today = Math.max(dl.time.indexOf(c.time.slice(0, 10)), 0);
         const days = dl.time.slice(today).map((date, k) => {
             const i = today + k;
-            return { date, code: dl.weather_code[i], min: dl.temperature_2m_min[i], max: dl.temperature_2m_max[i],
-                rain: dl.precipitation_probability_max[i] ?? 0, mm: dl.precipitation_sum[i] ?? 0,
-                sunrise: dl.sunrise[i], sunset: dl.sunset[i], uvMax: dl.uv_index_max[i],
-                daylight: dl.daylight_duration[i] };
+            return { date, code: dl.weather_code?.[i], min: dl.temperature_2m_min?.[i], max: dl.temperature_2m_max?.[i],
+                rain: dl.precipitation_probability_max?.[i] ?? 0, mm: dl.precipitation_sum?.[i] ?? 0,
+                sunrise: dl.sunrise?.[i], sunset: dl.sunset?.[i], uvMax: dl.uv_index_max?.[i],
+                daylight: dl.daylight_duration?.[i] };
         });
+        // Everything from the network is checked before it reaches the page (it is rendered into HTML): times and
+        // dates must look like Open-Meteo's ISO strings, numbers must be finite numbers, the place is plain text.
+        const T = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, D = /^\d{4}-\d{2}-\d{2}$/;
+        const n = (x) => (x == null || x === "" || !Number.isFinite(+x) ? null : +x);
+        for (const hr of hours) for (const k of ["temp", "code", "isDay", "rain", "mm"]) hr[k] = n(hr[k]) ?? 0;
+        for (const d of days) {
+            for (const k of ["code", "min", "max", "rain", "mm", "uvMax", "daylight"]) d[k] = n(d[k]) ?? 0;
+            if (!T.test(String(d.sunrise))) d.sunrise = null;
+            if (!T.test(String(d.sunset))) d.sunset = null;
+        }
+        const goodHours = hours.filter((hr) => T.test(String(hr.time)));
+        const goodDays = days.filter((d) => D.test(String(d.date)));
+        if (!T.test(String(c.time)) || !goodDays.length) throw new Error("Unexpected weather data");
+        hours.length = 0; hours.push(...goodHours);
+        days.length = 0; days.push(...goodDays);
+        for (const k of Object.keys(c)) if (k !== "time") c[k] = n(c[k]);
+        p.name = String(p.name == null ? "" : p.name).replace(/[<>&"]/g, "").slice(0, 80);
         return {
             v: 2, place: p.name, fetched: Date.now(), time: c.time,
             temp: c.temperature_2m, feels: c.apparent_temperature, humidity: c.relative_humidity_2m,

@@ -40,6 +40,9 @@
     function uid() {
         try { return crypto.randomUUID(); } catch (e) { return "id-" + Date.now().toString(36) + Math.random().toString(36).slice(2); }
     }
+    // Ids end up in HTML attributes and selectors: only letters, digits, "_" and "-" are kept; anything else (for
+    // example from an imported file) gets a fresh id.
+    const safeId = (v, fresh = () => uid()) => (/^[\w-]{1,64}$/.test(String(v)) ? String(v) : fresh());
     const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const clone = (o) => JSON.parse(JSON.stringify(o));
     // Without a root, look in the column and then in the date pop-out (it lives on <body>, see "date pop-out").
@@ -280,20 +283,20 @@
         const seen = new Set();
         s.lists = [];
         for (const l of Array.isArray(raw.lists) ? raw.lists : []) {
-            if (!l || typeof l !== "object" || !l.id || seen.has(String(l.id))) continue;
+            if (!l || typeof l !== "object" || !l.id || !/^[\w-]{1,64}$/.test(String(l.id)) || seen.has(String(l.id))) continue;
             seen.add(String(l.id));
             s.lists.push({
                 id: String(l.id), name: String(l.name || "Untitled").slice(0, 40),
                 color: ROLES.includes(l.color) ? l.color : "secondary",
                 sections: (Array.isArray(l.sections) ? l.sections : []).filter((x) => x && x.id)
-                    .map((x) => ({ id: String(x.id), name: String(x.name || "Section").slice(0, 40), collapsed: !!x.collapsed })),
+                    .map((x) => ({ id: safeId(x.id), name: String(x.name || "Section").slice(0, 40), collapsed: !!x.collapsed })),
             });
         }
         if (!seen.has("inbox")) s.lists.unshift({ id: "inbox", name: "Inbox", color: "secondary", sections: [] });
         const ids = new Set();
         (Array.isArray(raw.items) ? raw.items : []).forEach((it, i) => {
             if (!it || typeof it !== "object") return;
-            let id = String(it.id || uid());
+            let id = safeId(it.id);
             if (ids.has(id)) id = uid();
             ids.add(id);
             const list = s.lists.find((l) => l.id === String(it.listId)) || s.lists.find((l) => l.id === "inbox");
@@ -307,7 +310,7 @@
                 tags: Array.isArray(it.tags) ? [...new Set(it.tags.map(cleanTag).filter(Boolean))] : [],
                 repeat: REPEATS.includes(it.repeat) ? it.repeat : null,
                 subtasks: (Array.isArray(it.subtasks) ? it.subtasks : []).filter((x) => x && typeof x === "object")
-                    .map((x) => ({ id: String(x.id || uid()), title: String(x.title == null ? "" : x.title).slice(0, 300), done: !!x.done })),
+                    .map((x) => ({ id: safeId(x.id), title: String(x.title == null ? "" : x.title).slice(0, 300), done: !!x.done })),
                 done: !!it.done, completedAt: it.done ? Number(it.completedAt) || Date.now() : null,
                 createdAt: Number(it.createdAt) || Date.now(), order: Number.isFinite(it.order) ? it.order : i,
             });
