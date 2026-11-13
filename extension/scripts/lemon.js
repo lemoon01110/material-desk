@@ -47,6 +47,7 @@
         magSize: 26,           //   how much the item under the mouse grows, percent
         magSpread: 115,        //   how far the bell curve reaches, percent of one item's width
         magLift: 9,            //   how far the item under the mouse rises, px
+        startFolded: true,         // every new tab (and Chrome's first one) opens with both side columns folded (owner 2026-11-13)
         todoCollapsed: false,      // to-do column folded to a slim rail (collapse.js)
         bookmarksCollapsed: false, // right column folded to a slim rail
         todoSize: "normal",        // "normal" (320px) | "wide" (half the page); folding is todoCollapsed (collapse.js)
@@ -134,6 +135,10 @@
     }
     let current = { ...DEFAULTS };
     try { Object.assign(current, cleanSettings(JSON.parse(localStorage.getItem("lemon:settingsCache") || "{}"))); } catch (e) { /* */ }
+    // "Start folded": a new tab opens with both columns folded. Applied before the first paint (no flash of open
+    // columns) and saved with the load below, so the setting, this tab and the next change all agree.
+    const FOLDED = { todoCollapsed: true, bookmarksCollapsed: true, todoSize: "normal", bookmarksSize: "normal" };
+    if (current.startFolded !== false) Object.assign(current, FOLDED);
     const listeners = [];
     const cacheSettings = () => { try { localStorage.setItem("lemon:settingsCache", JSON.stringify(current)); } catch (e) { /* */ } };
     const tell = (patch) => listeners.forEach((cb) => { try { cb({ ...current }, patch); } catch (e) { console.error(e); } });
@@ -189,6 +194,7 @@
         const old = saved.engine !== undefined;
         if (saved.weatherAsked === undefined) fill.weatherAsked = old;
         if (saved.suggestions === undefined) fill.suggestions = old;
+        if (saved.startFolded !== false) for (const [k, v] of Object.entries(FOLDED)) if (saved[k] !== v) fill[k] = v;
         // One write, so a second tab opening meanwhile sees all of it or none of it.
         if (Object.keys(fill).length) {
             saved = { ...saved, ...fill };

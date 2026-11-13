@@ -127,6 +127,7 @@
                     rng("magLift", "Magnify lift", "Flat", "High"),
                 ])}
                 ${group("Columns", "columns", [
+                    sw("startFolded", "Start folded", "Every new tab opens with both side columns folded"),
                     sw("todo", "To-do column", "The list on the left"),
                     sw("bookmarks", "Bookmarks column", "When hidden, settings wait behind a small gear in the corner"),
                     sw("apps", "Google apps", "The app shortcuts under your bookmarks"),

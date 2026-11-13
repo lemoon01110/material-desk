@@ -1018,6 +1018,21 @@
             const s = Math.sign(x), a = Math.abs(x), t = 1 / (1 + 0.3275911 * a);
             return s * (1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-a * a));
         };
+        // The hover marker: ONE pair of hard lines for the whole strip (owner 2026-11-13: "they are supposed to share
+        // 1 bar"). Each line sits in the gap between the hovered item and its neighbour, so moving to the next item
+        // keeps the line between them where it is and slides the other one over, instead of two fading in and out.
+        const HOV = { on: false };
+        function marks(t) {
+            let m = t.querySelector(".dlb-marks");
+            if (!m) {
+                m = document.createElement("div");
+                m.className = "dlb-marks";
+                m.setAttribute("aria-hidden", "true");
+                m.innerHTML = '<i class="dlb-mark"></i><i class="dlb-mark"></i>';
+                t.appendChild(m);
+            }
+            return m.children;
+        }
         function magnify() {
             MAG.raf = 0;
             const t = trackOf();
@@ -1027,14 +1042,45 @@
             const cfg = Lemon.settings.get();
             MAG.A = (cfg.magSize ?? 26) / 100; MAG.L = cfg.magLift ?? 9; MAG.F = (cfg.magSpread ?? 115) / 100;
             const S = (st.items[0].w + 6) * MAG.F, push = MAG.A * S * Math.sqrt(Math.PI) / 2;
-            const place = (el, mid, scaled) => {
-                if (!MAG.on) { el.style.transform = ""; return; }
-                const d = (mid - px) / S, g = Math.exp(-d * d);
-                el.style.transform = `translateX(${(push * erf(d)).toFixed(2)}px)` +
-                    (scaled ? ` translateY(${(-MAG.L * g).toFixed(2)}px) scale(${(1 + MAG.A * g).toFixed(4)})` : "");
-            };
-            for (const it of st.items) if (it.s !== "off" || !MAG.on) place(it.el, it.l + it.w / 2, true);
-            for (const sp of st.seps) place(sp.el, sp.l, false);
+            // Where each item ends up: its center, half width and scale (the same numbers its transform uses).
+            const geo = st.items.map((it) => {
+                const mid = it.l + it.w / 2, d = (mid - px) / S, g = MAG.on ? Math.exp(-d * d) : 0;
+                const tx = MAG.on ? push * erf(d) : 0, sc = 1 + MAG.A * g, lift = MAG.L * g;
+                return { it, c: mid + tx, hw: it.w / 2 * sc, sc, lift, tx };
+            });
+            for (const q of geo) {
+                if (q.it.s === "off" && MAG.on) continue;
+                q.it.el.style.transform = MAG.on ? `translateX(${q.tx.toFixed(2)}px) translateY(${(-q.lift).toFixed(2)}px) scale(${q.sc.toFixed(4)})` : "";
+            }
+            for (const sp of st.seps) {
+                const d = (sp.l - px) / S;
+                sp.el.style.transform = MAG.on ? `translateX(${(push * erf(d)).toFixed(2)}px)` : "";
+            }
+            // The marker: the item under the pointer (or the nearest one), lines halfway to its neighbours.
+            const [ml, mr] = marks(t);
+            let i = geo.findIndex((q) => Math.abs(px - q.c) <= q.hw);
+            if (i < 0) i = geo.reduce((b, q, j) => (Math.abs(px - q.c) < Math.abs(px - geo[b].c) ? j : b), 0);
+            const q = geo[i], el = q.it.el, h = el.offsetHeight, top = el.offsetTop, oy = top + 0.75 * h;
+            const y0 = oy + (0.16 * h - 0.75 * h) * q.sc - q.lift, y1 = oy + (0.84 * h - 0.75 * h) * q.sc - q.lift;
+            // A neighbour only counts when it is next to it in the same row (not across the hours and days divider).
+            const gapTo = (o) => o && Math.abs(o.c - q.c) < (q.hw + o.hw) + 24 ? o : null;
+            const prev = gapTo(geo[i - 1]), next = gapTo(geo[i + 1]);
+            const xl = prev ? (prev.c + prev.hw + q.c - q.hw) / 2 : q.c - q.hw - 3;
+            const xr = next ? (q.c + q.hw + next.c - next.hw) / 2 : q.c + q.hw + 3;
+            const on = HOV.on && !el.classList.contains("dlb-ghost");
+            // Each line belongs to a gap (gap g is between items g-1 and g), and gap g always uses line g % 2. So when
+            // the pointer moves to the next item, the gap they share keeps its line (it only follows the magnified
+            // edges), and the other line fades out where it was and fades in on the far side.
+            for (const [g, x] of [[i, xl], [i + 1, xr]]) {
+                const m = g % 2 ? mr : ml;
+                const jump = on && (!m.classList.contains("on") || m.dataset.g !== String(g));
+                if (jump) { m.classList.remove("on"); m.style.transition = "none"; }
+                m.dataset.g = g;
+                m.style.transform = `translate(${(x - 1).toFixed(2)}px, ${y0.toFixed(2)}px)`;
+                m.style.height = (y1 - y0).toFixed(2) + "px";
+                if (jump) { void m.offsetWidth; m.style.transition = ""; }
+                m.classList.toggle("on", on);
+            }
         }
         const queueMag = () => { if (!MAG.raf) MAG.raf = requestAnimationFrame(magnify); };
         // Room above and below the strip for the biggest magnified item, so the settings never get it cut off: it
@@ -1049,16 +1095,20 @@
         Lemon.settings.onChange((s, patch) => { if ("magnify" in patch || "magSize" in patch || "magLift" in patch) { magRoom(); layout(true); } });
         new ResizeObserver(magRoom).observe(card);
         card.addEventListener("pointermove", (e) => {
-            if (e.pointerType !== "mouse" || reduced()) return;
-            const over = !drag && Lemon.settings.get().magnify !== false && !!e.target.closest(".dlb-track");
-            if (!over && !MAG.on) return;
-            MAG.on = over; MAG.x = e.clientX;
-            card.classList.toggle("dlb-mag", over);
+            if (e.pointerType !== "mouse") return;
+            const over = !drag && !!e.target.closest(".dlb-track .dlb-it, .dlb-track .dlb-sec");
+            if (!over && !HOV.on) return;
+            HOV.on = over;
+            MAG.on = over && Lemon.settings.get().magnify !== false && !reduced();
+            MAG.x = e.clientX;
+            card.classList.toggle("dlb-mag", MAG.on);
+            card.classList.toggle("dlb-hov", over);
             queueMag();
         });
-        card.addEventListener("pointerleave", () => { if (MAG.on) { MAG.on = false; card.classList.remove("dlb-mag"); queueMag(); } });
-        card.addEventListener("scroll", () => { if (MAG.on) queueMag(); }, true);
-        card.addEventListener("pointerdown", () => { if (MAG.on) { MAG.on = false; card.classList.remove("dlb-mag"); queueMag(); } });
+        const leave = () => { if (HOV.on || MAG.on) { HOV.on = MAG.on = false; card.classList.remove("dlb-mag", "dlb-hov"); queueMag(); } };
+        card.addEventListener("pointerleave", leave);
+        card.addEventListener("scroll", () => { if (HOV.on) queueMag(); }, true);
+        card.addEventListener("pointerdown", leave);
         card.addEventListener("pointercancel", end);
         // Any other scroll (touch, the browser) still updates the fade, once per frame.
         let pend = 0;
