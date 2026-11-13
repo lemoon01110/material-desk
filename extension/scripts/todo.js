@@ -7,6 +7,7 @@
  *     lists: [{ id, name, color: role, sections: [{ id, name, collapsed }] }],      // "inbox" always exists
  *     items: [{ id, title, notes, listId, sectionId, due: "YYYY-MM-DD"|null, time: "HH:MM"|null,
  *               priority: 0|1|2|3 (1 = highest), tags: [], repeat: null|daily|weekdays|weekly|monthly,
+ *               repeatDay?: 1-31 (monthly only: the day of the month it started on, see monthDay),
  *               subtasks: [{ id, title, done }], done, completedAt, createdAt, order }],
  *     tagColors: { tag: role }, focusId, view, writer, savedAt }
  * Roles are Material color families: primary, secondary, tertiary, error, outline (neutral).
@@ -140,18 +141,38 @@
     // A date inside a sentence: "today" and "tomorrow" in lower case, weekdays and months as they are.
     const relDate = (s) => fmtDate(s, true).replace(/^(Today|Tomorrow|Yesterday)$/, (w) => w.toLowerCase());
     const dueLabel = (it) => (it.due ? fmtDate(it.due) + (it.time ? " " + fmtTime(it.time) : "") : "");
-    function nextDue(due, rule) {
+    // A monthly repeat keeps the day it started on: once Jan 31 was clamped to Feb 28, the next one is Mar 31 again,
+    // not Mar 28. repeatDay remembers that day; it only counts while the due date is the clamped end of its month
+    // (a due date moved by hand to another day starts the repeat from that day instead).
+    function monthDay(due, repeatDay) {
+        const d = parseYmd(due), day = d.getDate();
+        return repeatDay > day && day === daysIn(d.getFullYear(), d.getMonth()) ? repeatDay : day;
+    }
+    function nextDue(due, rule, repeatDay) {
+        const day = rule === "monthly" ? monthDay(due, repeatDay) : 0;
         const step = (d) => {
             if (rule === "daily") return addDays(d, 1);
             if (rule === "weekly") return addDays(d, 7);
             if (rule === "weekdays") { let x = addDays(d, 1); while (x.getDay() === 0 || x.getDay() === 6) x = addDays(x, 1); return x; }
-            const day = parseYmd(due).getDate();          // monthly: same day of month, clamped
-            const y = d.getFullYear(), m = d.getMonth() + 1;
+            const y = d.getFullYear(), m = d.getMonth() + 1;   // monthly: same day of month, clamped
             return new Date(y, m, Math.min(day, daysIn(y, m)));
         };
         let d = step(parseYmd(due));
         const t = todayD();
         while (d <= t) d = step(d);
+        return ymd(d);
+    }
+    // The date a to-do gets when only a time or a repeat is set: today, or tomorrow when the time has already passed
+    // (so a new to-do is never overdue the moment it is made), moved to Monday when it repeats on weekdays and would
+    // start on a Saturday or Sunday.
+    function defaultDue(time, repeat) {
+        const now = new Date();
+        let d = todayD();
+        if (time) {
+            const [h, mi] = time.split(":").map(Number);
+            if (h * 60 + mi <= now.getHours() * 60 + now.getMinutes()) d = addDays(d, 1);
+        }
+        if (repeat === "weekdays") while (d.getDay() === 0 || d.getDay() === 6) d = addDays(d, 1);
         return ymd(d);
     }
 
@@ -236,19 +257,15 @@
             out.time = `${pad((h % 12) + (m[3].toLowerCase() === "pm" ? 12 : 0))}:${m[2] || "00"}`;
         }) || grab(`${opts.loose ? "(?:at\\s+)?" : "at\\s+"}([01]?\\d|2[0-3]):([0-5]\\d)`, (m) => { out.time = `${pad(+m[1])}:${m[2]}`; })
           || grab(`(?:at\\s+)?(noon|midnight)`, (m) => { out.time = /noon/i.test(m[1]) ? "12:00" : "00:00"; });
-        if (tonight && !out.time) out.time = "20:00";
+        // "tonight" means 8 PM, but not once 8 PM has passed (that would be overdue at once): then it is just today.
+        if (tonight && !out.time && new Date().getHours() < 20) out.time = "20:00";
         if (weekdayToday && out.time && out.due === ymd(t)) {
             const now = new Date(), [h, mi] = out.time.split(":").map(Number);
             if (h * 60 + mi <= now.getHours() * 60 + now.getMinutes()) out.due = ymd(addDays(t, 7));
         }
-        if (!opts.keepDue) {
-            if (out.time && !out.due) {
-                const now = new Date(), [h, mi] = out.time.split(":").map(Number);
-                out.due = h * 60 + mi <= now.getHours() * 60 + now.getMinutes() ? ymd(addDays(t, 1)) : ymd(t);
-            }
-            if (out.repeat && !out.due) out.due = ymd(t);
-        }
-        grab(`(!{1,3}|p[1-3])`, (m) => { const v = m[1]; out.priority = v[0] === "!" ? 4 - v.length : +v[1]; });
+        if (!opts.keepDue && (out.time || out.repeat) && !out.due) out.due = defaultDue(out.time, out.repeat);
+        // Any run of "!" is a priority, more than three is still priority 1 (taking only three left a stray "!").
+        grab(`(!+|p[1-3])`, (m) => { const v = m[1]; out.priority = v[0] === "!" ? 4 - Math.min(v.length, 3) : +v[1]; });
         while (grab(`#(\\p{L}[\\p{L}\\p{N}_-]*)`, (m) => {
             const tag = cleanTag(m[1]);
             if (!tag) return false;
@@ -271,7 +288,7 @@
         open: null, openTitle: "", picker: false, cal: null, calFocus: null,
         search: false, q: "", tag: null, doneOpen: false,
         sheet: false, colorFor: null, confirmDel: null, renameSec: null,
-        cursor: null, lastAdded: null, sheetMsg: "", searchDone: new Set(),
+        cursor: null, lastAdded: null, sheetMsg: "", searchDone: new Set(), limit: 200,
     };
     const pendingDone = new Set();
 
@@ -312,6 +329,7 @@
                 priority: [1, 2, 3].includes(it.priority) ? it.priority : 0,
                 tags: Array.isArray(it.tags) ? [...new Set(it.tags.map(cleanTag).filter(Boolean))] : [],
                 repeat: REPEATS.includes(it.repeat) ? it.repeat : null,
+                ...(it.repeat === "monthly" && Number.isInteger(it.repeatDay) && it.repeatDay >= 1 && it.repeatDay <= 31 ? { repeatDay: it.repeatDay } : {}),
                 subtasks: uniqueIds((Array.isArray(it.subtasks) ? it.subtasks : []).filter((x) => x && typeof x === "object")
                     .map((x) => ({ id: safeId(x.id), title: String(x.title == null ? "" : x.title).slice(0, 300), done: !!x.done }))),
                 done: !!it.done, completedAt: it.done ? Number(it.completedAt) || Date.now() : null,
@@ -380,7 +398,10 @@
         } else synced = clone(S);
         Promise.resolve(Lemon.store.set(KEY, out)).catch(() => snack("Could not save the to-do list. Storage is full or blocked."));
     }
-    const commit = () => { save(); render(); };
+    // A change made with a click or Enter (add, complete, delete, move) is written at once: a page gets no reliable
+    // signal before its extension is reloaded or turned off, so a debounced save would lose the last 250 ms. Only
+    // typing in a field goes through the debounced save() above.
+    const commit = () => { flush(); render(); };
     window.addEventListener("pagehide", () => { if (saveTimer) flush(); });
     document.addEventListener("visibilitychange", () => { if (document.hidden && saveTimer) flush(); });
 
@@ -555,10 +576,14 @@
         const label = open === 0 ? "All done today" : `${doneT} of ${total} done today`;
         el.setAttribute("role", "img");
         el.setAttribute("aria-label", label);
+        el.title = label;
+        // The normal 320px column has room for "2 of 9 done" but not the full sentence, so "today" only shows in a
+        // half or full width column (todo.css .td-prog-x). Screen readers and the tooltip always get the full label.
+        const shown = open === 0 ? label : `${doneT} of ${total} done<span class="td-prog-x"> today</span>`;
         el.innerHTML = `<svg class="td-ring${open === 0 ? " is-full" : ""}" viewBox="0 0 24 24" aria-hidden="true">
                 <circle class="td-ring-t" cx="12" cy="12" r="9"/>
                 <circle class="td-ring-v" cx="12" cy="12" r="9" pathLength="100" stroke-dasharray="${(frac * 100).toFixed(1)} 100"/>
-            </svg><span aria-hidden="true">${label}</span>`;
+            </svg><span aria-hidden="true">${shown}</span>`;
     }
 
     function renderNav() {
@@ -575,7 +600,7 @@
         };
         const over = open.some(isOverdue);
         $(".td-views").innerHTML = SMART.map(([v, label]) => `<button type="button" class="td-seg" data-act="view" data-v="${v}" data-k="v:${v}" aria-pressed="${S.view === v}">${label}${
-            n[v] && v !== "done" ? `<span class="td-n${v === "today" && over ? " is-over" : ""}">${n[v]}</span>` : ""}</button>`).join("");
+            n[v] && v !== "done" ? `<span class="td-n${v === "today" && over ? " is-over" : ""}">${n[v] > 99 ? "99+" : n[v]}</span>` : ""}</button>`).join("");
         const counts = Object.create(null);
         open.forEach((i) => (counts[i.listId] = (counts[i.listId] || 0) + 1));
         $(".td-lists").innerHTML = S.lists.map((l) => `<button type="button" class="td-lchip" data-act="view" data-v="list:${l.id}" data-k="v:list:${l.id}"
@@ -637,7 +662,7 @@
                 data-id="${it.id}"${p ? ` style="${roleVars(PRI_ROLE[p], "p")}"` : ""}>
             ${checkHTML(it)}
             <button type="button" class="td-open" data-k="open:${it.id}" data-nav aria-expanded="false">
-                <span class="td-ttl">${it.title ? esc(it.title) : '<span class="td-untitled">Untitled</span>'}${p ? `<span class="td-pri" aria-hidden="true">${"!".repeat(4 - p)}</span><span class="td-sr">, priority ${p}</span>` : ""}</span>
+                <span class="td-ttl-row"><span class="td-ttl">${it.title ? esc(it.title) : '<span class="td-untitled">Untitled</span>'}</span>${p ? `<span class="td-pri" aria-hidden="true">${"!".repeat(4 - p)}</span><span class="td-sr">, priority ${p}</span>` : ""}</span>
                 ${meta.length ? `<span class="td-meta">${meta.join("")}</span>` : ""}
             </button>
         </li>`;
@@ -924,10 +949,25 @@
     }).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
 
     // Groups and views -----------------------------------------------------------------------------------------
+    // A big list (thousands of to-dos) would rebuild thousands of rows on every change. A view draws at most ui.limit
+    // rows, in order across its groups, then a "Show more" button; group counts still count everything. The open
+    // item, the keyboard cursor and a just-added to-do are always drawn, so they never vanish behind the cut.
+    const ROW_STEP = 200;
+    let rowsLeft = Infinity, rowsHidden = 0;
+    function takeRows(arr) {
+        const out = [];
+        for (const it of arr) {
+            if (rowsLeft > 0 || it.id === ui.open || it.id === ui.cursor || it.id === ui.lastAdded) { out.push(it); rowsLeft--; }
+        }
+        rowsHidden += arr.length - out.length;
+        return out;
+    }
     function groupHTML(g) {
+        const items = takeRows(g.items);
+        if (!items.length && g.items.length) return "";
         return `<section class="td-group${g.cls ? " " + g.cls : ""}">
             ${g.head ? `<div class="td-gh"><h3 class="td-gh-t">${g.head}</h3>${g.count ? `<span class="td-gh-n">${g.count}</span>` : ""}<span class="td-flex"></span>${g.actions || ""}</div>` : ""}
-            <ul class="td-ul">${g.items.map((i) => rowHTML(i, g.opts)).join("")}</ul>
+            <ul class="td-ul">${items.map((i) => rowHTML(i, g.opts)).join("")}</ul>
         </section>`;
     }
     function doneHTML(items, scope) {
@@ -960,6 +1000,8 @@
 
     function renderBody() {
         let h = "";
+        rowsLeft = ui.limit;
+        rowsHidden = 0;
         if (ui.search) h = searchHTML();
         else {
             const v = S.view, focus = focusItem();
@@ -973,6 +1015,9 @@
             else if (v === "all") h += allHTML(skip);
             else if (v === "done") h += doneViewHTML();
             else h += listHTML(v.slice(5), skip);
+        }
+        if (rowsHidden) {
+            h += `<button type="button" class="td-text-btn td-more" data-act="more" data-k="more">${icon("expand")}Show ${Math.min(ROW_STEP, rowsHidden)} more of ${rowsHidden}</button>`;
         }
         body.innerHTML = h;
     }
@@ -1047,7 +1092,7 @@
         items.forEach((i) => (bySec.get(i.sectionId) || bySec.get(null)).push(i));
         for (const arr of bySec.values()) arr.sort(byOrder);
         let h = `<ul class="td-ul td-flow" data-list="${list.id}" aria-label="${esc(list.name)}. Drag or Alt+Up and Alt+Down to reorder">`;
-        h += bySec.get(null).map((i) => rowHTML(i, { drag: true })).join("");
+        h += takeRows(bySec.get(null)).map((i) => rowHTML(i, { drag: true })).join("");
         for (const sec of list.sections) {
             const arr = bySec.get(sec.id);
             h += `<li class="td-sec" data-sec="${sec.id}">${ui.renameSec === sec.id
@@ -1056,7 +1101,7 @@
                    <span class="td-flex"></span>
                    <button type="button" class="icon-btn td-sec-b" data-act="sec-rename" data-v="${sec.id}" aria-label="Rename section ${esc(sec.name)}">${icon("edit")}</button>
                    <button type="button" class="icon-btn td-sec-b" data-act="sec-del" data-v="${sec.id}" aria-label="Delete section ${esc(sec.name)}">${icon("delete")}</button>`}</li>`;
-            if (!sec.collapsed) h += arr.map((i) => rowHTML(i, { drag: true })).join("");
+            if (!sec.collapsed) h += takeRows(arr).map((i) => rowHTML(i, { drag: true })).join("");
         }
         h += `</ul>`;
         const f = skip && focusItem();
@@ -1229,6 +1274,7 @@
         S.view = v;
         ui.doneOpen = false;
         ui.renameSec = null;
+        ui.limit = ROW_STEP;
         body.scrollTop = 0;
         commit();
     }
@@ -1303,15 +1349,21 @@
         if (ui.open === id) { finalizeOpen(); ui.open = null; ui.picker = false; }
         if (it.repeat) {
             const copy = Object.assign(clone(it), { id: uid(), done: true, completedAt: Date.now(), repeat: null });
+            delete copy.repeatDay;
             S.items.push(copy);
-            const prev = { due: it.due, subtasks: clone(it.subtasks) };
-            it.due = nextDue(it.due || todayS(), it.repeat);
+            const prev = { due: it.due, subtasks: clone(it.subtasks), repeatDay: it.repeatDay };
+            const from = it.due || todayS();
+            if (it.repeat === "monthly") it.repeatDay = monthDay(from, it.repeatDay);
+            it.due = nextDue(from, it.repeat, it.repeatDay);
             it.subtasks.forEach((s) => (s.done = false));
             commit();
             snack(`Done. Next one ${relDate(it.due)}`, "Undo", () => {
                 S.items = S.items.filter((x) => x.id !== copy.id);
                 const cur = find(id);
-                if (cur) { cur.due = prev.due; cur.subtasks = prev.subtasks; }
+                if (cur) {
+                    cur.due = prev.due; cur.subtasks = prev.subtasks;
+                    if (prev.repeatDay) cur.repeatDay = prev.repeatDay; else delete cur.repeatDay;
+                }
                 commit();
             });
             return;
@@ -1339,6 +1391,7 @@
         const t = todayD();
         if (v === "none") { it.due = null; it.time = null; it.repeat = null; }
         else it.due = ymd(v === "today" ? t : v === "tomorrow" ? addDays(t, 1) : v === "nextweek" ? nextWeekday(1, false) : v === "weekend" ? weekendD() : t);
+        delete it.repeatDay;            // a date picked by hand: a monthly repeat counts from its day from now on
         ui.picker = false;
     }
     function applyTimeText(it, text) {
@@ -1351,7 +1404,7 @@
         const p = parseQuick(text, [], { keepDue: true, loose: true });
         if (!p.time) return false;
         it.time = p.time;
-        if (!it.due) it.due = todayS();
+        if (!it.due) it.due = defaultDue(it.time, it.repeat);
         return true;
     }
     function shake(el) { if (!el) return; el.classList.remove("is-shake"); void el.offsetWidth; el.classList.add("is-shake"); }
@@ -1377,10 +1430,10 @@
             case "pop-done": ui.picker = false; render(); { const d = col.querySelector('[data-k="e-due"]'); if (d) d.focus({ preventScroll: true }); } break;
             case "due": if (it) { setDue(it, v); commit(); const d = col.querySelector('[data-k="e-due"]'); if (d) d.focus(); } break;
             // A day in the calendar keeps the pop-out open (time and repeat can follow); Done or a click outside closes.
-            case "due-date": if (it) { it.due = v; ui.calFocus = v; commit(); } break;
+            case "due-date": if (it) { it.due = v; delete it.repeatDay; ui.calFocus = v; commit(); } break;
             case "cal": { const m = ui.cal || todayD(); ui.cal = new Date(m.getFullYear(), m.getMonth() + +v, 1); ui.calFocus = null; render(); break; }
-            case "time": if (it) { it.time = v || null; if (v && !it.due) it.due = todayS(); commit(); } break;
-            case "repeat": if (it) { it.repeat = v || null; if (v && !it.due) it.due = todayS(); commit(); } break;
+            case "time": if (it) { it.time = v || null; if (v && !it.due) it.due = defaultDue(v, it.repeat); commit(); } break;
+            case "repeat": if (it) { it.repeat = v || null; delete it.repeatDay; if (v && !it.due) it.due = defaultDue(it.time, v); commit(); } break;
             case "pri": if (it) { it.priority = +v; commit(); } break;
             case "tag-del": if (it) { it.tags = it.tags.filter((t) => t !== v); commit(); const ti = $('[data-k="e-tag"]'); if (ti) ti.focus(); } break;
             case "tag-add": if (it) { addTag(it, v); } break;
@@ -1402,6 +1455,7 @@
                 const subs = $$(".td-sub-in");
                 (subs[Math.max(0, i - 1)] || subs[0]).focus();
             } break;
+            case "more": ui.limit += ROW_STEP; render(); break;
             case "toggle-done": if (ui.open && ui.doneOpen && find(ui.open) && find(ui.open).done) closeItem(false); ui.doneOpen = !ui.doneOpen; render(); break;
             case "clear-done": clearDone(v); break;
             case "move-overdue": moveOverdue(); break;
@@ -1806,10 +1860,10 @@
             e.preventDefault();
             const p = parseQuick(t.value, [], { keepDue: true, loose: true });
             if (!p.due && !p.time && !p.repeat) { shake(t); return; }
-            if (p.due) it.due = p.due;
+            if (p.due) { it.due = p.due; delete it.repeatDay; }
             if (p.time) it.time = p.time;
-            if (p.repeat) it.repeat = p.repeat;
-            if ((p.time || p.repeat) && !it.due) it.due = todayS();
+            if (p.repeat) { it.repeat = p.repeat; delete it.repeatDay; }
+            if ((p.time || p.repeat) && !it.due) it.due = defaultDue(it.time, it.repeat);
             ui.picker = false;
             commit();
             const d = $('[data-k="e-due"]');
@@ -1886,6 +1940,8 @@
     });
     // A folded column hides its fields: open it first (collapse.js follows the setting), then focus.
     function unfold(then) {
+        // Under the bookmarks' full page: step them back to half first (collapse.js), so "n" and "/" reach the column.
+        if (rootCls("full-bookmarks") && window.LemonLayout && window.LemonLayout.reveal) { window.LemonLayout.reveal("left").then(then, then); return; }
         if (!rootCls("fold-todo")) { then(); return; }
         Promise.resolve(Lemon.settings.set({ todoCollapsed: false })).then(then, then);
     }

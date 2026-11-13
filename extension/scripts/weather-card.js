@@ -2,7 +2,8 @@
  * Weather for the new tab, in #weather-host under the search bar.
  * Data: Open-Meteo through openMeteoForecast() in open-meteo.js; place from GPS when the "useGPS" setting is on, else
  * the typed `location`, else the internet address. Cached 15 minutes (a failed refresh is tried again after 30 s,
- * 1, 2 and 5 minutes, and when the network comes back); refetched when the place settings change,
+ * 1, 2 and 5 minutes, and when the network comes back, except a place that was not found, which waits for Try again
+ * or a new place); refetched when the place settings change,
  * redrawn when the units change. Cached data older than 45 minutes says how old it is.
  * Not a card but a band with no box, so it sits lightly on the wallpaper: a hairline
  * above and below, and between them one sideways row: conditions, Now (the only glass item), the next 12 hours with
@@ -161,7 +162,9 @@
         }
         const a = hs.findIndex((h) => h.rain >= 50);
         if (a < 0) {
-            const m = hs.findIndex((h) => h.rain >= 30);
+            // The likeliest hour (the first on a tie), so the band names the same hour and chance as the detail
+            // header ("chances rise to 45% by 5 AM"), not the first hour that crosses 30%.
+            const m = hs.reduce((best, h, i) => h.rain >= 30 && (best < 0 || h.rain > hs[best].rain) ? i : best, -1);
             return m < 0 ? null : `Maybe ${snowy([hs[m]]).toLowerCase()} around ${hourLabel(hs[m].time)}, ${hs[m].rain}%`;
         }
         let b = a;
@@ -243,6 +246,10 @@
     // Tomorrow without its name: "65°, rain 85%".
     const tomorrowBit = (w) => tomorrowLine(w).replace(/^Tomorrow /, "");
 
+    // The condition in Now. "Thunderstorm," is wider than the words column on a narrow center, so it gets a soft
+    // hyphen ("Thunder-" / "storm, hail") instead of breaking at any letter. Screen readers use the item's label.
+    const condHtml = (text) => esc(text).replace("Thunderstorm", "Thunder&shy;storm");
+
     // Today's low and high from the day the place is in now (a cache from before midnight already has tomorrow).
     const todayRange = (w) => { const d = w.days[todayAt(w)]; return d ? { ...w, min: d.min, max: d.max } : w; };
     function nowItem(w) {
@@ -258,7 +265,7 @@
         return item("dlb-now" + (deg(w.temp).length > 3 ? " dlb-t3" : ""), label, `
             ${badge(w)}
             <span class="dlb-temp">${deg(w.temp)}</span>
-            <span class="dlb-words"><span class="dlb-cond">${esc(text)}</span>${feels ? `<span class="dlb-feels">Feels like ${deg(w.feels)}</span>` : ""}</span>
+            <span class="dlb-words"><span class="dlb-cond">${condHtml(text)}</span>${feels ? `<span class="dlb-feels">Feels like ${deg(w.feels)}</span>` : ""}</span>
             ${out ? `<span class="dlb-out">${esc(out)}</span>` : ""}
             ${tm ? `<span class="dlb-tm"><b>Tomorrow</b> ${esc(tm)}</span>` : ""}
             <span class="dlb-range"><span class="dlb-rl">Today</span><span>${deg(w.min)}</span>
@@ -274,10 +281,12 @@
         const calm = speedNum(w.wind) < 2;
         const cmp = COMPASS_SHORT[point(w.windDir)];
         const vis = w.visibility;
+        // Snow on a snow day, the same word the outlook and Tomorrow use.
+        const wd = today.code != null ? wetWord(today.code) : "Rain";
         const list = [
-            ["rain", "primary", I.drop, "Rain today", `${rain}%`,
+            ["rain", "primary", I.drop, `${wd} today`, `${rain}%`,
                 mm >= 0.25 ? `${amount(mm)} total` : rain >= 20 ? "Only a trace" : "Dry day",
-                `Chance of rain today ${rain}%, ${mm >= 0.25 ? amount(mm) + " expected" : "little or none expected"}`],
+                `Chance of ${wd.toLowerCase()} today ${rain}%, ${mm >= 0.25 ? amount(mm) + " expected" : "little or none expected"}`],
             ["wind", "secondary", `<span class="dlw-arrow" style="--dir:${(w.windDir + 180) % 360}deg">${I.arrow}</span>`, "Wind",
                 calm ? "Calm" : `${speedNum(w.wind)}<small> ${speedUnit()} ${cmp}</small>`, `Gusts ${speedNum(w.gusts)} ${speedUnit()}`,
                 `Wind from the ${COMPASS[point(w.windDir)]} at ${speed(w.wind)}, gusts ${speed(w.gusts)}`],
@@ -323,7 +332,7 @@
                 <span class="dlb-h">${hourLabel(h.time)}</span>
                 ${window.weatherIconSvg(window.weatherKind(h.code), h.isDay)}
                 <span class="dlb-t">${deg(h.temp)}</span>
-                <span class="dlb-pp">${h.rain >= 20 ? h.rain + "%" : ""}</span>`, ` data-k="hour" data-t="${esc(h.time)}"`);
+                <span class="dlb-pp">${h.rain >= 20 ? h.rain + "%" : NO_RAIN}</span>`, ` data-k="hour" data-t="${esc(h.time)}"`);
         }).join("");
     }
 
@@ -335,7 +344,7 @@
             <span class="dlb-h">${dayName(d.date, j + 1)}</span>
             ${window.weatherIconSvg(dayKind(d), true)}
             <span class="dlb-t">${deg(d.max)}<span class="dlb-lo">${deg(d.min)}</span></span>
-            <span class="dlb-pp">${d.rain >= 20 ? d.rain + "%" : ""}</span>`, ` data-k="day" data-d="${esc(d.date)}"`)).join("");
+            <span class="dlb-pp">${d.rain >= 20 ? d.rain + "%" : NO_RAIN}</span>`, ` data-k="day" data-d="${esc(d.date)}"`)).join("");
     }
 
     // The caption on the bottom hairline: about the part of the strip in view (never a repeat of Now's outlook).
@@ -347,6 +356,9 @@
 
     const trackOf = () => card && card.querySelector(".dlb-track");
     // Same height in every state (loading, error, loaded), so the clock and search bar never jump.
+    // Under an hour or day with little chance of rain: a faint dash, so every column keeps its three rows and the
+    // numbers do not look pushed up (owner 2026-11-13).
+    const NO_RAIN = '<span class="dlb-none" aria-hidden="true">\u2014</span>';
     const quiet = (body) => `<div class="dlb-rule dlb-top"><i class="dlb-line"></i></div><div class="dlb-quietbody">${body}</div><div class="dlb-rule dlb-bottom"></div>`;
 
     function render(card, w) {
@@ -371,6 +383,10 @@
                 : failure && failure.name === "TimeoutError" ? "The weather service isn’t answering."
                 : failure && failure.message === "Place not found" ? "Can’t find that place. Check the place in Settings."
                 : "Can’t load the weather right now.";
+            // The same error again (an automatic retry failed too): leave it as it is, so the alert is not read out
+            // anew and the focus stays on Try again.
+            const up = card.querySelector('.dlb-msg[role="alert"]');
+            if (up && up.textContent === why && card.querySelector(".dlb-retry")) return;
             card.className = "dlb-quiet";
             card.innerHTML = quiet(`<p class="dlb-msg" role="alert">${why}</p><button type="button" class="dlb-retry">${I.refresh}Try again</button>`);
             if (focusKey) card.querySelector(".dlb-retry").focus({ preventScroll: true });
@@ -392,7 +408,9 @@
                 <div class="dlb-sec" data-sec="h" role="group" aria-label="${SECS[0][2]}">${hourItems(w)}</div><i class="dlb-sep" aria-hidden="true"></i>
                 <div class="dlb-sec" data-sec="d" role="group" aria-label="${SECS[1][2]}">${dayItems(w)}</div>
             </div>
-            <div class="dlb-rule dlb-bottom"><p class="dlb-note"><span class="dlb-nav" role="group" aria-label="Jump to">${SECS.map(([k, name, long]) =>
+            <div class="dlb-rule dlb-bottom"><p class="dlb-note"><span class="dlb-nav" role="group" aria-label="Jump to">${SECS
+                .filter(([k]) => k !== "h" || ahead(w).length)   // no Hours jump to an empty section (old saved data)
+                .map(([k, name, long]) =>
                 `<button type="button" class="dlb-jump dlb-jump-${k}" data-sec="${k}" aria-label="Jump to ${long.toLowerCase()}">${name}</button>`).join("")}</span>
                 <span class="dlb-cap" aria-live="polite"></span></p></div>
             <p id="dlb-hint" class="dlw-sr">Arrow keys move, up and down switch between the readings, the hours and the days, Enter opens the details.</p>`;
@@ -503,6 +521,15 @@
             const g = s === "off" || c < fw * 0.5 || c > W - fw * 0.5;
             if (g !== it.g) { it.el.classList.toggle("dlb-ghost", g); it.g = g; }
         }
+        // The strip's tab stop must stay on an item that can take the focus. An "off" item is visibility: hidden, so
+        // Tab would skip it and Chrome would stop on the scroll container itself, where the arrows and Enter do
+        // nothing. Hand the stop to the first item fully in view (also from a mostly faded one at the edge, which a
+        // glide can leave it on).
+        const stop = st.items.find((it) => it.el.tabIndex === 0);
+        if (stop && (stop.s === "off" || stop.g) && stop.el !== focused) {
+            const to = st.items.find((it) => it.s === "in") || st.items.find((it) => it.s !== "off");
+            if (to) { stop.el.tabIndex = -1; to.el.tabIndex = 0; }
+        }
         for (const sp of st.seps) {
             const a = sp.l - sx, o = clamp(Math.min(a, W - a) / fw, 0, 1).toFixed(2);
             if (o !== sp.o) { sp.el.style.opacity = o; sp.o = o; }
@@ -599,6 +626,9 @@
     }
 
     function chart(w) {
+        // Saved data a day old may have no hours left ahead. The last cached hours drawn as "Next 24 hours" with "Now"
+        // on an hour long gone would read as current, so say so instead.
+        if (ahead(w).length < 3) return `<p class="dlw-nochart">No hourly forecast in the saved data.</p>`;
         // From the hour the place is in now (a cached reading can be an hour or more old).
         const pn = placeNow(w);
         let s0 = 0;
@@ -639,8 +669,9 @@
             </div>`;
     }
 
+    // From today: a cache fetched yesterday (a laptop that slept and woke up offline) still holds yesterday first.
     function tenDays(w) {
-        const ds = w.days.slice(0, 10), t = todayAt(w);
+        const t0 = todayAt(w), ds = w.days.slice(t0, t0 + 10), t = 0;
         const lo = Math.min(...ds.map((d) => d.min)), hi = Math.max(...ds.map((d) => d.max));
         const span = Math.max(hi - lo, 1);
         return ds.map((d, i) => `
@@ -685,17 +716,19 @@
         if (vis != null) out.push(row("dlw-t-vis", "Visibility", distance(vis),
             vis >= 10000 ? "Clear view" : vis >= 5000 ? "Light haze" : vis >= 1000 ? "Hazy" : "Fog",
             `How far you can see clearly. Under ${distance(1000)} is fog.`));
-        // Rain: today when today is wet, else the next wet day.
+        // Rain: today when today is wet, else the next wet day. Snow days say snow (wetWord), as the band does.
         if ((today.rain || 0) >= 50) {
-            out.push(row("dlw-t-rain", "Rain today", `${Math.round(today.rain)}%`,
+            const wd = wetWord(today.code);
+            out.push(row("dlw-t-rain", `${wd} today`, `${Math.round(today.rain)}%`,
                 `${amount(today.mm || 0)} expected${tomorrow ? `, ${Math.round(tomorrow.rain)}% tomorrow` : ""}`,
-                "Chance of rain today, and how much should fall."));
+                `Chance of ${wd.toLowerCase()} today, and how much should fall.`));
         } else {
             const j = w.days.findIndex((d, i) => i > t && d.rain >= 50);
-            const d = w.days[j];
-            out.push(row("dlw-t-rain", "Next rain", d ? `${dayName(d.date, 2)}<small> ${d.rain}%</small>` : "None",
+            const d = w.days[j], wd = d ? wetWord(d.code).toLowerCase() : "rain";
+            out.push(row("dlw-t-rain", `Next ${wd}`, d ? `${dayName(d.date, 2)}<small> ${d.rain}%</small>` : "None",
                 d ? `${j - t === 1 ? "Tomorrow, " : ""}${amount(d.mm)} expected` : `Dry for ${w.days.length - t} days`,
-                "The next day with a 50% or higher chance of rain, and how much should fall."));
+                d ? `The next day with a 50% or higher chance of ${wd}, and how much should fall.`
+                    : "The next day with a 50% or higher chance of rain or snow, and how much should fall."));
         }
         if (w.air) {
             const a = w.air, n = (v) => v == null ? "?" : Math.round(v);
@@ -716,8 +749,13 @@
         if (!detail || !w || w === "wait") return;
         const body = detail.querySelector(".dlw-d-body");
         const keep = body ? body.scrollTop : 0;
+        // A refresh while the detail is open rebuilds it: note where the focus was, so it is not thrown out of the
+        // dialog to <body>, and put the mark on what was picked in the band back afterwards.
+        const open = !detail.hidden, fa = document.activeElement;
+        const focusAt = open && detail.contains(fa) ? (fa.closest(".dlw-d-body") === fa ? ".dlw-d-body"
+            : fa.closest(".dlw-credit") ? ".dlw-credit a" : ".dlw-close") : null;
         const text = window.weatherText(w.code, w.isDay);
-        const stale = ageMin(w) > STALE;
+        const stale = ageMin(w) > STALE, ch = chart(w);
         detail.innerHTML = `
             <header class="dlw-d-head">
                 ${badge(w, "dlw-small")}
@@ -731,9 +769,9 @@
             </header>
             <div class="dlw-d-body" tabindex="0" aria-label="Weather details">
                 <section class="dlw-d-sec dlw-d-chartsec" aria-labelledby="dlw-h-24">
-                    <div class="dlw-d-h"><h3 id="dlw-h-24">Next 24 hours</h3>
-                        <span class="dlw-legend"><i class="dlw-lg-line"></i>Temperature<i class="dlw-lg-bar"></i>Chance of precipitation<i class="dlw-lg-night"></i>Night</span></div>
-                    ${chart(w)}
+                    <div class="dlw-d-h"><h3 id="dlw-h-24">Next 24 hours</h3>${ch.includes("dlw-nochart") ? "" : `
+                        <span class="dlw-legend"><i class="dlw-lg-line"></i>Temperature<i class="dlw-lg-bar"></i>Chance of precipitation<i class="dlw-lg-night"></i>Night</span>`}</div>
+                    ${ch}
                 </section>
                 <section class="dlw-d-sec dlw-d-days" aria-labelledby="dlw-h-10">
                     <div class="dlw-d-h"><h3 id="dlw-h-10">10 days</h3></div>
@@ -748,6 +786,12 @@
         const nb = detail.querySelector(".dlw-d-body");
         if (nb) { nb.scrollTop = keep; nb.addEventListener("scroll", moreHint, { passive: true }); }
         detailFor = w; detailAt = Date.now();
+        if (open) {
+            const el = pickEl(openerItem());
+            if (el) el.classList.add("dlw-on");   // no scroll: the reader keeps their place
+            moreHint();
+        }
+        if (focusAt) (detail.querySelector(focusAt) || detail.querySelector(".dlw-close")).focus({ preventScroll: true });
     }
     // A soft fade at the bottom of the detail while there is more below.
     function moreHint() {
@@ -756,7 +800,7 @@
     }
 
     let card = null, detail = null, last = null, opener = null, suppressClick = false, failure = null, loading = false;
-    let again = false, refocus = null;
+    let again = false, refocus = null, failPlace = "";   // failPlace: the place key the last failure was for
     // A refresh that fails (the network was down a moment, the service did not answer) is tried again soon, not only at
     // the next 15-minute refresh: after 30 s, 1, 2 and 5 minutes, then every 5 minutes until one works. Before this a
     // single miss left hours-old weather up (owner, 2026-11-12: "Why is the weather still from 5 hrs ago").
@@ -764,16 +808,28 @@
     let retryTimer = 0, retryStep = 0;
     const LOAD_LIMIT_MS = 30000;   // a whole refresh (place and forecast) gives up after 30 s, so none can hang for good
 
-    // Mark what was clicked in the band (an hour in the chart, a day in the list, a tile) and bring it into view.
-    function markPick(it) {
-        detail.querySelectorAll(".dlw-on").forEach((e) => e.classList.remove("dlw-on"));
-        const k = it && it.dataset.k;
+    // The band control that opened the detail. A refresh rebuilds the band, so when the element itself is gone the
+    // one with the same key (the same hour, day or tile) in the new band stands in for it.
+    let openerKey = "";
+    function openerItem() {
+        if (opener && document.contains(opener)) return opener;
+        if (!openerKey || !card) return null;
+        return [...card.querySelectorAll(".dlb-it, .dlb-more")].find((b) => keyOf(b) === openerKey) || null;
+    }
+    // What a band item points at in the detail: an hour in the chart, a day in the list, a tile.
+    function pickEl(it) {
+        const k = it && it.dataset && it.dataset.k;
         const tileOf = { rain: ".dlw-t-rain", wind: ".dlw-t-wind", uv: ".dlw-t-uv", air: ".dlw-t-air", humid: ".dlw-t-humid",
             vis: ".dlw-t-vis", dew: ".dlw-t-dew" };
-        const el = k === "hour" ? detail.querySelector(`.dlw-hits i[data-t="${it.dataset.t}"]`)
+        return k === "hour" ? detail.querySelector(`.dlw-hits i[data-t="${it.dataset.t}"]`)
             : k === "day" ? detail.querySelector(`.dlw-ten li[data-d="${it.dataset.d}"]`)
             : k === "metric" ? detail.querySelector(tileOf[it.dataset.m])
             : k === "sun" ? detail.querySelector(".dlw-d-chartsec") : null;   // a sunrise or sunset in the strip: the chart
+    }
+    // Mark what was clicked in the band and bring it into view.
+    function markPick(it) {
+        detail.querySelectorAll(".dlw-on").forEach((e) => e.classList.remove("dlw-on"));
+        const el = pickEl(it);
         const body = detail.querySelector(".dlw-d-body");
         if (!el) { body.scrollTop = 0; return; }
         el.classList.add("dlw-on");
@@ -787,6 +843,7 @@
         const closing = !detail.hidden;
         if (closing) { detail.classList.add("dlw-in"); document.documentElement.classList.add("dlw-veil"); }   // before the pending close can hide it
         opener = it || document.activeElement;
+        openerKey = card.contains(opener) ? keyOf(opener) : "";
         if (detailFor !== last || Date.now() - detailAt > 60000) renderDetail(last);
         document.documentElement.classList.add("dlw-open");
         detail.hidden = false;
@@ -824,8 +881,8 @@
         // Reduced motion has no transition (and no transitionend), so hide at once and let clicks through.
         if (reduced()) finish();
         else { detail.classList.add("dlw-anim"); detail.addEventListener("transitionend", finish, { once: true }); setTimeout(finish, 260); }
-        const back = card.querySelector(".dlb-now");
-        if (opener && opener !== document.body && document.contains(opener) && opener.focus) opener.focus({ preventScroll: true });
+        const back = card.querySelector(".dlb-now"), from = openerItem();
+        if (from && from !== document.body && from.focus) from.focus({ preventScroll: true });
         else if (back) back.focus({ preventScroll: true });
     }
     function onKey(e) {
@@ -885,6 +942,14 @@
             go(target[e.key]);
         });
         card.addEventListener("focusin", (e) => {
+            // Should the scroll container itself ever get the focus (Chrome makes a scroller with no tab stop inside
+            // focusable), pass it on to the strip's own tab stop, where the arrow keys work.
+            if (e.target.classList.contains("dlb-track")) {
+                const to = e.target.querySelector('.dlb-it[tabindex="0"]:not(.dlb-off)')
+                    || (st.items.find((x) => x.s === "in") || {}).el;
+                if (to) to.focus({ preventScroll: true });
+                return;
+            }
             const it = e.target.closest(".dlb-it");
             if (!it) return;
             group(it).forEach((b) => { b.tabIndex = b === it ? 0 : -1; });
@@ -1031,8 +1096,13 @@
         const place = JSON.stringify([Lemon.settings.get().useGPS, Lemon.settings.get().location]);
         if (cached && (cached.placeKey !== place || cached.v !== 2)) cached = null;
         if (cached) { const same = last && last.fetched === cached.fetched; last = cached; redraw(same); }
-        else if (!last) render(card, "wait");
+        // An automatic retry keeps its error up while it asks again (a swap to "Getting the weather…" for up to the
+        // request cap, then the alert again, read out anew each time). A forced load (a new place) shows the wait.
+        else if (!last && (force || !failure)) render(card, "wait");
         if (!force && cached && Date.now() - cached.fetched < FRESH) return;
+        // A place that was not found cannot fix itself: nothing is asked again until the place changes or the user
+        // presses Try again (both force), not every 15 minutes or when the network comes back.
+        if (!force && !last && failure && failure.message === "Place not found" && failPlace === place) return;
         if (loading) { if (force) again = true; return; }   // a place change while loading: load again after
         loading = true;
         card.classList.add("dlb-loading");
@@ -1048,8 +1118,10 @@
             clearTimeout(retryTimer); retryTimer = 0; retryStep = 0;
             redraw();
         } catch (e) {
-            failure = e;
-            retrySoon();
+            failure = e; failPlace = place;
+            // Retrying soon helps a network that was down a moment, not a typo in the place.
+            if (e && e.message === "Place not found") { clearTimeout(retryTimer); retryTimer = 0; retryStep = 0; }
+            else retrySoon();
             if (!cached) { last = null; render(card, null); closeDetail(); }
             else redraw();   // the cache stays, marked with its age once it is old
         } finally {

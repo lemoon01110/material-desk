@@ -160,8 +160,10 @@
     font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .dlb-t3 .dlb-temp { font-size: calc(var(--tp) * 0.82); }
 .dlb-words { grid-area: words; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+/* Breaks between words (the long "Thunderstorm" carries a soft hyphen, weather-card.js condHtml), with break-word only as a
+   last resort, so "Thunderstorm, hail" no longer splits as "Thunderstor" / "m, hail" on a narrow center. */
 .dlb-cond { font: 600 1.15rem/1.2 var(--f-body); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+    -webkit-line-clamp: 2; overflow-wrap: break-word; }
 .dlb-feels { font-size: 0.9rem; line-height: 1.3; color: var(--ink-2); white-space: nowrap; }
 .dlb-out, .dlb-tm { font: 600 0.92rem/1.3 var(--f-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .dlb-out { grid-area: out; margin-top: 4px; color: var(--dl-tertiary, #dcc48c); }
@@ -255,6 +257,7 @@
 .dlb-lo { margin-left: 5px; font: 600 0.95rem/1.1 var(--f-display); color: var(--ink-2); }
 /* The chance of rain, only when it matters. */
 .dlb-pp { height: 1rem; font: 700 0.85rem/1rem var(--f-display); color: var(--dl-primary, #ffb4a4); }
+.dlb-none { color: var(--ink-2); opacity: 0.45; font-weight: 500; }
 
 /* Loading and error: the same height as the band, a quiet line between the two hairlines. */
 .dlb-quietbody { height: calc(var(--vt) + var(--nh) + var(--rg) + var(--sh) + 8px + var(--vb));
@@ -517,7 +520,9 @@
     .dlw-chart { height: 150px; margin: 10px 2px 22px; }
     .dlw-chart:has(.dlw-on) { margin-top: 26px; }
     .dlw-ten, .dlw-rows { margin-top: 4px; }
-    .dlw-ten li { grid-template-columns: 36px 24px 42px 30px minmax(16px, 1fr) 30px; gap: 5px; padding: 2px 6px; }
+    /* The name column holds "Today" (40 px); the bar never drops below 34 px (it was 16 at 1280x800), paid for by
+       the chance column. 34 is what fits the 10 days card at 1366 wide; narrower details split evenly (below). */
+    .dlw-ten li { grid-template-columns: 42px 24px 34px 30px minmax(34px, 1fr) 30px; gap: 5px; padding: 2px 6px; }
     .dlw-ten .wi { width: 24px; height: 24px; }
     .dlw-dn { font-size: 0.88rem; }
     .dlw-lo, .dlw-hi { font-size: 0.9rem; }
@@ -526,6 +531,13 @@
     .dlw-rl, .dlw-rn { font-size: 0.8rem; }
     .dlw-rn { white-space: normal; line-height: 1.2; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
     .dlw-rv { font-size: 0.95rem; }
+}
+/* Narrower still (1280 wide screens, 800 wide windows, up to 640 px): the two cards share the width evenly. At 2 to 3
+   the 10 days card was too narrow for its bars (16 px at 1280x800, today's dot covered the whole bar). 1366 keeps 2 to
+   3: an even split wraps more Right now notes and 1366x640 would need a scroll. */
+@container dlwd (max-width: 640px) {
+    .dlw-d-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .dlw-rows { column-gap: 8px; }   /* so the Right now notes keep their two lines in the narrower card */
 }
 /* 1366x768: the compact layout's chart a little shorter, so the 10 days and the tiles fit without scrolling. */
 @container lemon (max-height: 769px) {
@@ -543,6 +555,9 @@
 @container dlwd (max-width: 560px) {
     .dlw-d-body { grid-template-columns: minmax(0, 1fr); grid-template-areas: "chart" "days" "grid"; }
 }
+
+/* Saved data with no hours left ahead: a short note in place of the chart (weather-card.js chart). */
+.dlw-nochart { margin: 10px 0 4px; font-size: 0.88rem; color: var(--dl-on_surface_variant, #d8c2bd); }
 
 /* Open-Meteo attribution (CC BY 4.0), the last line of the detail view. */
 .dlw-credit { grid-column: 1 / -1; margin: -6px 0 0; text-align: right; font-size: 0.75rem; color: var(--text-2); }

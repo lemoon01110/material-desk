@@ -52,65 +52,106 @@
     // page. The real column waits hidden under it and fades in when it arrives.
     const EASE = "cubic-bezier(0.2, 0.9, 0.25, 1)", MORPH_MS = 340;
     const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // What is on screen for a column: the folded icon, or the panel itself.
-    function lookOf(s) {
-        const col = document.getElementById(s.col);
-        const el = Lemon.settings.get()[s.fold] ? col.querySelector(".fold-rail") : col;
+    // The page may run zoomed (html { zoom }, a managed look at 0.91): measured boxes come in screen px, while the
+    // ghost's left, top, width and height are page px that the zoom scales again. So back to page px.
+    function lookOfEl(el) {
         const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
-        // The page may run zoomed (html { zoom }, a managed look at 0.91): measured boxes come in screen px, while
-        // the ghost's left, top, width and height are page px that the zoom scales again. So back to page px.
         const z = parseFloat(getComputedStyle(root).zoom) || 1;
         return { el, rect: { x: r.left / z, y: r.top / z, w: r.width / z, h: r.height / z }, radius: cs.borderRadius,
             bg: cs.backgroundColor, shadow: cs.boxShadow };
     }
-    let morphing = null;
+    // What is on screen for a column: the folded icon, or the panel itself. Decided by the class on the page, not by
+    // the setting: while the column is dragged out its fold class is off (the icon is display: none and would
+    // measure 0x0 at the page's corner), and a settings change only reaches the classes once it is saved.
+    function lookOf(s) {
+        const col = document.getElementById(s.col);
+        return lookOfEl(root.classList.contains("fold-" + s.cls) ? col.querySelector(".fold-rail") : col);
+    }
+    // The morph running for each column (by its cls). A new change to the same column takes over from the running
+    // one at once, so quick presses never leave a stand-in panel or a hidden column behind (an animation's finish
+    // event comes a frame later, too late to clean up after itself). The two columns may morph together.
+    const morphs = {};
+    function endMorph(s, run) {
+        if (morphs[s.cls] !== run) return;
+        delete morphs[s.cls];
+        root.classList.remove("morph-" + s.cls);
+        if (!Object.keys(morphs).length) root.classList.remove("fold-morphing");
+    }
     async function morph(s, change, from) {
         const col = document.getElementById(s.col);
         if (!window.__lemonSettled || reduced() || !col || !shown(s)) return change();
-        if (morphing) morphing.finish();
-        const a = from || lookOf(s);
+        // Changed again mid-flight: the running ghost stops where it is and stays on screen until the new one
+        // replaces it, and the new one starts from there, so a reversal turns smoothly instead of jumping.
+        const prev = morphs[s.cls], taken = prev ? prev.stop() : null;
+        const a = from || (taken && taken.at) || lookOf(s);
+        // Registered before the change is saved, so a press that comes while this one saves still finds it.
+        const run = { a, olds: taken ? taken.olds : [], ghost: null, anim: null, stopped: false };
+        run.stop = () => {
+            run.stopped = true;
+            if (run.anim) run.anim.pause();
+            const g = run.ghost;
+            return { at: g ? lookOfEl(g) : run.a, olds: g ? run.olds.concat(g) : run.olds };
+        };
+        const dropOlds = () => { for (const g of run.olds) g.remove(); run.olds = []; };
+        morphs[s.cls] = run;
         root.classList.add("fold-morphing");          // no CSS width transition: the ghost does the moving
-        const done = await change();
+        let done;
+        try { done = await change(); }
+        catch (e) { if (!run.stopped) { dropOlds(); endMorph(s, run); } throw e; }
+        if (run.stopped) return done;                 // a newer change to this column took over while this one saved
         const b = lookOf(s);
         if (Math.abs(a.rect.w - b.rect.w) < 2 && Math.abs(a.rect.h - b.rect.h) < 2 && Math.abs(a.rect.x - b.rect.x) < 2) {
-            root.classList.remove("fold-morphing"); return done;
+            dropOlds(); endMorph(s, run); return done;
         }
-        const ghost = document.createElement("div");
+        const ghost = run.ghost = document.createElement("div");
         ghost.className = "fold-ghost";
         Object.assign(ghost.style, { left: a.rect.x + "px", top: a.rect.y + "px", width: a.rect.w + "px", height: a.rect.h + "px" });
+        // The real column waits hidden and takes no clicks, so the ghost does: like the column's title (or its folded
+        // icon) it folds or opens the column again. A quick second click is then not lost on what lies under it.
+        ghost.addEventListener("click", () => setState(s, state(s) === "normal" ? "fold" : "normal"));
         document.body.appendChild(ghost);
+        dropOlds();
         root.classList.add("morph-" + s.cls);        // the real column (or icon) stays hidden until the ghost lands
         const frame = (k) => ({ left: k.rect.x + "px", top: k.rect.y + "px", width: k.rect.w + "px", height: k.rect.h + "px",
             borderRadius: k.radius, backgroundColor: k.bg === "rgba(0, 0, 0, 0)" ? getComputedStyle(ghost).backgroundColor : k.bg,
             boxShadow: k.shadow });
-        const anim = ghost.animate([frame(a), frame(b)], { duration: MORPH_MS, easing: EASE, fill: "forwards" });
-        const end = () => {
-            if (morphing !== run) return;
-            morphing = null;
-            root.classList.remove("morph-" + s.cls, "fold-morphing");
+        const anim = run.anim = ghost.animate([frame(a), frame(b)], { duration: MORPH_MS, easing: EASE, fill: "forwards" });
+        anim.onfinish = () => {
+            if (run.stopped) return;
+            endMorph(s, run);
+            ghost.classList.add("leaving");          // fading out: takes no more clicks
             b.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: "ease-out" });
             ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: "ease-out" }).onfinish = () => ghost.remove();
         };
-        const run = { finish: () => { anim.finish(); } };
-        morphing = run;
-        anim.onfinish = end;
         return done;
     }
 
     // Returns the settings promise (keys.js waits for it before focusing inside a column that was folded).
-    function setState(s, to, from) { return morph(s, () => setStateNow(s, to), from); }
+    function setState(s, to, from) {
+        const col = document.getElementById(s.col), rail = col && col.querySelector(".fold-rail");
+        // Folding hides everything in the column, so a focused control there would drop the focus to the page:
+        // hand it to the folded icon, which opens the column again.
+        const refocus = to === "fold" && !!rail && col.contains(document.activeElement) && document.activeElement !== rail;
+        // When the other column has to step back from the whole page (unfulls), both morph from one saved change.
+        let saving = null;
+        const change = () => saving || (saving = setStateNow(s, to));
+        if (unfulls(s, to)) morph(SIDES.find((o) => o !== s), change).catch(() => {});
+        const p = morph(s, change, from);
+        if (refocus) p.then(() => { if (root.classList.contains("fold-" + s.cls)) rail.focus({ preventScroll: true }); }, () => {});
+        return p;
+    }
+    // Only one column can fill the page, and while one does the other hides under it (base.css). So the other steps
+    // back to its half when this one goes full, and also when this one is changed while hidden there (by a shortcut),
+    // so the change lands on something the user can see.
+    function unfulls(s, to) {
+        const other = SIDES.find((o) => o !== s);
+        return Lemon.settings.get()[other.size] === "full" && (to === "full" || (shown(s) && shown(other) && state(other) === "full"));
+    }
     function setStateNow(s, to) {
-        if (to === "fold") return Lemon.settings.set({ [s.fold]: true, [s.size]: "normal" });
-        // Both columns may be wide at once.
-        else if (to === "wide") return Lemon.settings.set({ [s.fold]: false, [s.size]: "wide" });
-        // Only one column can fill the page; the other steps back to its own half or less.
-        else if (to === "full") {
-            const other = SIDES.find((o) => o !== s);
-            const patch = { [s.fold]: false, [s.size]: "full" };
-            if (Lemon.settings.get()[other.size] === "full") patch[other.size] = "wide";
-            return Lemon.settings.set(patch);
-        }
-        return Lemon.settings.set({ [s.fold]: false, [s.size]: "normal" });
+        const patch = to === "fold" ? { [s.fold]: true, [s.size]: "normal" }
+            : { [s.fold]: false, [s.size]: to === "wide" || to === "full" ? to : "normal" };   // both may be wide at once
+        if (unfulls(s, to)) patch[SIDES.find((o) => o !== s).size] = "wide";
+        return Lemon.settings.set(patch);
     }
     // Width (page px) each preset gives the column, for picking the one nearest to where the grip was let go.
     function presetWidth(name) {
@@ -248,6 +289,9 @@
             const t = document.querySelector(sel);
             if (t) { t.classList.add("fold-title"); t.title = "Click to collapse"; }
         }
+        // A column open but hidden under the other one's full page (base.css): the other steps back to its half.
+        const hiddenUnder = (sd) => { const o = SIDES.find((x) => x !== sd); return state(sd) !== "fold" && shown(o) && state(o) === "full"; };
+        const reveal = (sd) => shown(sd) && hiddenUnder(sd) ? setState(SIDES.find((x) => x !== sd), "wide") : Promise.resolve();
         // For keyboard shortcuts (keys.js): step a column one size smaller or bigger, or toggle its fold.
         window.LemonLayout = {
             step(side, dir) {
@@ -261,8 +305,14 @@
             toggle(side) {
                 const sd = SIDES.find((x) => x.side === side);
                 if (!shown(sd)) return Promise.resolve();
+                // Open but hidden under the other column's full page: the user cannot see it to want it folded, so
+                // show it instead.
+                if (hiddenUnder(sd)) return reveal(sd);
                 return setState(sd, state(sd) === "fold" ? "normal" : "fold");
             },
+            // Before focusing inside a column (keys.js openCol): bring it out from under the other one's full page.
+            // Returns the settings promise.
+            reveal(side) { return reveal(SIDES.find((x) => x.side === side)); },
         };
         paint();
         paintBadge();
@@ -283,8 +333,11 @@
         const soonCut = new Date(now.getTime() + 60 * 60 * 1000);
         const soonHm = `${pad(soonCut.getHours())}:${pad(soonCut.getMinutes())}`;
         let over = 0, todayN = 0, soon = null;
-        for (const it of (data && data.items) || []) {
-            if (it.done || !it.due) continue;
+        // Saved or imported data may hold what todo.js skips on load (a null entry, items that are not a list): skip
+        // it here too, or one bad entry stops the badge from painting at all.
+        const items = data && Array.isArray(data.items) ? data.items : [];
+        for (const it of items) {
+            if (!it || typeof it !== "object" || it.done || !it.due) continue;
             if (it.due < today || (it.due === today && it.time && it.time < hm)) over++;
             else if (it.due === today) {
                 todayN++;

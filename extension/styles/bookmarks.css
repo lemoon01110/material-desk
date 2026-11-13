@@ -58,7 +58,8 @@
 .bm-root.on { background: var(--dl-secondary_container, #5d3f39); color: var(--dl-on_secondary_container, #ffdad3);
     box-shadow: none; }
 .bm-root:focus-visible { outline-offset: -2px; }
-.bm-count { font: 600 .74rem/1 var(--f-display); opacity: .75; }
+.bm-count { font-family: inherit; font-size: 1em; line-height: inherit; font-weight: 600; font-variant-numeric: tabular-nums;
+    opacity: .7; }   /* same font and size as "Bookmarks bar", on its line (a smaller number looked raised) */
 .bm-count:empty { display: none; }
 .bm-newfolder { flex: none; width: 36px; height: 36px; border: 0; border-radius: 12px; display: grid; place-items: center;
     background: transparent; color: var(--dl-secondary, #e7bdb4); transition: background-color .15s; }
@@ -170,6 +171,9 @@ button.bm-crumb:hover { color: var(--text); background: color-mix(in srgb, var(-
 .bm-view-grid .bm-drop-after::after { right: -3px; top: 12%; bottom: 12%; width: 3px; }
 .bm-view-list .bm-drop-before::before { top: -2px; left: 8px; right: 8px; height: 3px; }
 .bm-view-list .bm-drop-after::after { bottom: -2px; left: 8px; right: 8px; height: 3px; }
+/* List rows use content-visibility, whose paint containment clips the line drawn just outside the row to a hairline.
+   The marked row is on screen anyway, so it skips containment while it shows the line (dragged links from outside too). */
+.bm-view-list .bm-item.bm-drop-before, .bm-view-list .bm-item.bm-drop-after { content-visibility: visible; }
 .bm-item.bm-drop-into { background: color-mix(in srgb, var(--dl-secondary_container, #5d3f39) 70%, transparent);
     box-shadow: inset 0 0 0 2px var(--dl-secondary, #e7bdb4); }
 .bm-item.bm-drop-into .bm-title, .bm-item.bm-drop-into .bm-sub { color: var(--dl-on_secondary_container, #ffdad3); }
@@ -254,9 +258,10 @@ button.bm-crumb:hover { color: var(--text); background: color-mix(in srgb, var(-
 .bm-sheet-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 20px; }
 .bm-sheet-actions .btn-filled { min-width: 84px; height: 40px; }
 .bm-grow { flex: 1; }
+/* The indent stops growing after six levels, so deep folders keep their names and the sheet never scrolls sideways. */
 .bm-move-list { display: flex; flex-direction: column; gap: 2px; margin: 8px -6px 0; }
 .bm-move-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; border: 0; text-align: left;
-    padding: 8px 12px 8px calc(12px + var(--depth, 0) * 18px); border-radius: var(--r-md); background: transparent;
+    padding: 8px 12px 8px calc(12px + min(var(--depth, 0), 6) * 18px); border-radius: var(--r-md); background: transparent;
     color: var(--text); font-size: .92rem; }
 .bm-move-row > span:first-of-type { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bm-move-row svg { width: 20px; height: 20px; color: var(--dl-secondary, #e7bdb4); }

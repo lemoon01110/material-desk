@@ -29,14 +29,16 @@
     const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
     const ARROW_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h10.17l-4.58-4.59L12 5l7 7-7 7-1.41-1.41L15.17 13H5z"/></svg>';
 
-    // An address: a scheme (https://, chrome://), localhost, an IPv4 address, or a host whose last part is letters.
-    // So "3.14", "v1.2.3" and "README.md" are searched, not opened. A bare "name.ext" with a common file extension
-    // (no path, no port) also counts as a search.
+    // An address: a scheme (https://, chrome://, or about:blank as Chrome's address bar takes it), localhost, an IPv4
+    // address, or a host whose last part is letters. So "3.14", "v1.2.3" and "README.md" are searched, not opened. A
+    // bare "name.ext" with a common file extension (no path, no port) also counts as a search. Hosts may be written in
+    // any script ("münchen.de", "例え.jp"), and a query or fragment may follow the host directly ("example.com?q=1").
     const FILE_EXT = /\.(md|txt|js|mjs|ts|tsx|jsx|py|sh|json|css|html?|xml|ya?ml|toml|ini|cfg|conf|log|csv|tsv|pdf|docx?|xlsx?|pptx?|png|jpe?g|gif|svg|webp|mp3|mp4|mkv|mov|wav|zip|tar|gz|7z|exe|deb|rpm|c|h|cpp|hpp|rs|go|java|kt|rb|php|lua|qml|lock)$/i;
-    const hasScheme = (t) => /^[a-z][\w+.-]*:\/\//i.test(t);
-    const looksLikeUrl = (t) => !/\s/.test(t) && (hasScheme(t) || /^localhost(:\d+)?(\/\S*)?$/i.test(t) ||
-        /^\d{1,3}(\.\d{1,3}){3}(:\d+)?(\/\S*)?$/.test(t) ||
-        (/^(?:[a-z0-9-]+\.)+[a-z]{2,}(:\d+)?(\/\S*)?$/i.test(t) && (/[/:]/.test(t) || !FILE_EXT.test(t))));
+    const hasScheme = (t) => /^[a-z][\w+.-]*:\/\//i.test(t) || /^about:[\w-]+$/i.test(t);
+    const looksLikeUrl = (t) => !/\s/.test(t) && (hasScheme(t) || /^localhost(:\d+)?([/?#]\S*)?$/i.test(t) ||
+        /^\d{1,3}(\.\d{1,3}){3}(:\d+)?([/?#]\S*)?$/.test(t) ||
+        (/^(?:[\p{L}\p{N}-]+\.)+(?:\p{L}{2,}|xn--[a-z0-9-]+)(:\d+)?([/?#]\S*)?$/iu.test(t) &&
+            (/[/:]/.test(t) || !FILE_EXT.test(t.replace(/[?#].*/, "")))));
     // Script-carrying schemes never open from the search bar: "javascript://..." is searched as text.
     const safeUrl = (u) => { try { return !/^(javascript|data|vbscript|blob|filesystem):$/i.test(new URL(u).protocol); } catch (e) { return false; } };
     // The engine's mark on its cookie: a letter, or a small search glyph for "Chrome default".
@@ -78,7 +80,7 @@
         const t = text.trim();
         if (!t) return;
         const e = engine();
-        let url = looksLikeUrl(t) ? (hasScheme(t) ? t : (/^(localhost|\d{1,3}(\.\d{1,3}){3})(:|\/|$)/i.test(t) ? "http://" : "https://") + t) : null;
+        let url = looksLikeUrl(t) ? (hasScheme(t) ? t : (/^(localhost|\d{1,3}(\.\d{1,3}){3})([:/?#]|$)/i.test(t) ? "http://" : "https://") + t) : null;
         if (url && !safeUrl(url)) url = null;
         if (!url) {
             if (!e.url && chromeQuery(t, newTab)) return;
@@ -139,7 +141,19 @@
             input.placeholder = `Search ${e.label || e.name} or type a web address`;
         }
         function showEngines(open) { engMenu.hidden = !open; engBtn.setAttribute("aria-expanded", open); }
-        function closeAll() { list.hidden = true; showEngines(false); active = -1; }
+        // Forget the suggestions (and any reply on its way): what is in the field becomes what was typed. Used when
+        // the list no longer belongs to the text or the engine (voice wrote the field, the engine changed).
+        function dropList() {
+            seq++; typed = input.value; items = []; active = -1; list.hidden = true;
+            input.setAttribute("aria-activedescendant", "");
+        }
+        function closeAll() {
+            // Closed while a suggestion is highlighted (a click elsewhere): the field keeps that suggestion as its
+            // text, so the old list is dropped rather than reopened later with a highlight the keys no longer follow.
+            if (active >= 0) dropList();
+            list.hidden = true; showEngines(false); active = -1;
+            input.setAttribute("aria-activedescendant", "");
+        }
 
         function showList() {
             list.innerHTML = items.map((s, i) => `
@@ -151,13 +165,18 @@
             if (active >= 0) list.querySelector("#sb-opt-" + active)?.scrollIntoView({ block: "nearest" });
         }
 
-        input.addEventListener("input", async () => {
-            typed = input.value; active = -1;
+        async function refresh() {
             const mine = ++seq;
             const got = await suggest(typed.trim());
             if (mine !== seq) return;
             items = got.filter((s) => s.toLowerCase() !== typed.trim().toLowerCase());
             showList();
+        }
+        input.addEventListener("input", () => {
+            typed = input.value; active = -1;
+            endHint();
+            showEngines(false);
+            refresh();
         });
         input.addEventListener("keydown", (e) => {
             if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -173,7 +192,7 @@
                 if (!list.hidden || !engMenu.hidden) {
                     e.preventDefault();
                     // Back to what was typed, not the highlighted suggestion.
-                    if (!list.hidden && active >= 0) input.value = typed;
+                    if (!list.hidden && active >= 0) { input.value = typed; active = -1; }
                     closeAll();
                 }
                 else { input.value = ""; typed = ""; items = []; }
@@ -192,7 +211,12 @@
             go(items[+li.dataset.i], e.button === 1 || e.ctrlKey || e.metaKey);
         });
         input.addEventListener("blur", () => setTimeout(() => { list.hidden = true; }, 120));
-        input.addEventListener("focus", () => { if (items.length && input.value && suggestsFor(Lemon.settings.get())) list.hidden = false; });
+        // Focus in the field closes the engine menu (only one menu at a time) and brings the suggestions back, drawn
+        // anew so the highlight is the one the arrow keys work from.
+        input.addEventListener("focus", () => {
+            showEngines(false);
+            if (items.length && input.value && suggestsFor(Lemon.settings.get())) showList();
+        });
 
         // "Chrome default" fills the first row (with a line saying what it is), the six sites sit under it, 3 by 2.
         engMenu.innerHTML = Object.entries(ENGINES).map(([k, e]) =>
@@ -205,8 +229,12 @@
         engBtn.addEventListener("click", () => {
             list.hidden = true;
             markEngine();
+            const hadFocus = engMenu.contains(document.activeElement);
             showEngines(engMenu.hidden);
             if (!engMenu.hidden) engMenu.querySelector('[aria-selected="true"]')?.focus();
+            // Closed from the keyboard (the "e" shortcut) while an engine had focus: focus comes back to the button,
+            // as Escape does, instead of falling to the page.
+            else if (hadFocus) engBtn.focus();
         });
         engMenu.addEventListener("click", (e) => {
             const li = e.target.closest("li");
@@ -234,39 +262,75 @@
 
         // ---- Voice: Chrome's speech recognition types into the bar; a final result searches. Click again to stop.
         const mic = host.querySelector(".sb-mic"), ai = host.querySelector(".sb-ai");
-        let rec = null;
-        function stopVoice() { if (rec) { try { rec.abort(); } catch (e) { /* */ } } }
+        let rec = null, stopped = false, hintTimer = 0;
+        function stopVoice() { if (rec) { stopped = true; try { rec.abort(); } catch (e) { /* */ } } }
         function voiceDone() {
             rec = null; mic.classList.remove("sb-listen"); mic.setAttribute("aria-pressed", "false");
             input.placeholder = ""; paintEngine();
         }
+        // What went wrong, shown in place of the placeholder (short enough for the field on a 1280 px wide window
+        // with both round buttons). It goes away after a few seconds, or as soon as something is typed; while the
+        // field holds text the placeholder is not seen anyway, so the timer restores it either way.
+        function hint(text) {
+            clearTimeout(hintTimer);
+            input.value = ""; dropList(); input.placeholder = text;
+            hintTimer = setTimeout(() => { hintTimer = 0; if (!rec) paintEngine(); }, 4000);
+        }
+        function endHint() {
+            if (!hintTimer) return;
+            clearTimeout(hintTimer); hintTimer = 0;
+            if (!rec) paintEngine();
+        }
+        const NOT_HEARD = "Didn't hear anything. Try the mic again";
+        const VOICE_ERRORS = {
+            "not-allowed": "Allow the microphone to search by voice",
+            "service-not-allowed": "Voice search is not available here",
+            "audio-capture": "No microphone found",
+            "no-speech": NOT_HEARD,
+            "network": "Voice search needs the internet",
+            "language-not-supported": "Voice search does not know this language",
+        };
         mic.addEventListener("click", () => {
             if (rec) { stopVoice(); return; }
             closeAll();
-            rec = new Speech();
-            rec.lang = navigator.language || "en-US";
-            rec.interimResults = true;
-            rec.continuous = false;
+            endHint();
+            // Each handler checks it still belongs to the current recognition, so a late event from an earlier one
+            // can not end or overwrite the next.
+            const r = rec = new Speech();
+            stopped = false;
+            r.lang = navigator.language || "en-US";
+            r.interimResults = true;
+            r.continuous = false;
             let said = "", sent = false;
-            rec.onstart = () => {
+            // Voice writes the field: the suggestions for what was typed before no longer belong to it, and the
+            // arrow keys must come back to the spoken words, not the old typed text.
+            const write = (text) => { input.value = text; dropList(); };
+            r.onstart = () => {
+                if (r !== rec) return;
                 mic.classList.add("sb-listen"); mic.setAttribute("aria-pressed", "true");
-                input.value = ""; input.placeholder = "Listening…";
+                write(""); input.placeholder = "Listening…";
             };
-            rec.onresult = (e) => {
-                said = [...e.results].map((r) => r[0].transcript).join("");
-                input.value = said;
+            r.onresult = (e) => {
+                if (r !== rec) return;
+                said = [...e.results].map((x) => x[0].transcript).join("");
+                write(said);
                 if (e.results[e.results.length - 1].isFinal && said.trim() && !sent) { sent = true; go(said); }
             };
-            rec.onerror = (e) => {
-                const why = e.error === "not-allowed" || e.error === "service-not-allowed"
-                    ? "Allow the microphone for Material Desk to search by voice"
-                    : e.error === "no-speech" ? "Didn't hear anything. Try the mic again"
-                    : e.error === "network" ? "Voice search needs the internet" : "";
+            r.onerror = (e) => {
+                if (r !== rec) return;
+                const user = stopped || e.error === "aborted";
                 voiceDone();
-                if (why) { input.value = ""; input.placeholder = why; setTimeout(() => { if (!rec && !input.value) paintEngine(); }, 4000); }
+                // Stopped by the user (mic clicked again, or voice turned off): nothing went wrong, say nothing.
+                if (!user) hint(VOICE_ERRORS[e.error] || "Voice search did not work. Try again");
             };
-            rec.onend = () => { if (rec) voiceDone(); };
-            try { rec.start(); } catch (e) { voiceDone(); }
+            // Ended with no words and no error (Chrome does this when it hears only noise): say so, unless the user
+            // stopped it.
+            r.onend = () => {
+                if (r !== rec) return;
+                voiceDone();
+                if (!said.trim() && !stopped) hint(NOT_HEARD);
+            };
+            try { r.start(); } catch (e) { voiceDone(); hint("Voice search did not work. Try again"); }
         });
 
         // ---- AI Mode: Google's AI answer page for what is typed (or AI Mode's start page). Ctrl, Cmd or middle click: new tab.
@@ -290,8 +354,14 @@
         Lemon.settings.onChange((s, patch) => {
             if ("voice" in patch || "aiMode" in patch || "engine" in patch) paintButtons();
             if ("engine" in patch) paintEngine();
-            // Suggestions turned off (or an engine without them): drop what was shown and any reply on its way.
-            if (("suggestions" in patch || "engine" in patch) && !suggestsFor(s)) { seq++; items = []; active = -1; list.hidden = true; }
+            // Suggestions turned off: drop what was shown and any reply on its way. A new engine: the old list came
+            // from the old engine's service, so drop it too, and ask the new engine (if it gives suggestions) for
+            // what is in the field, but only while the field has focus (a change from another tab opens nothing).
+            if ("suggestions" in patch && !suggestsFor(s)) dropList();
+            if ("engine" in patch) {
+                dropList();
+                if (suggestsFor(s) && typed.trim() && document.activeElement === input) refresh();
+            }
         });
     }
 

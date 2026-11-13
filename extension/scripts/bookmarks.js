@@ -200,16 +200,29 @@
     function highlight(text, tokens) {
         text = String(text || "");
         if (!tokens || !tokens.length) return esc(text);
+        // Matches are found in the lower-cased text (as the search index has it), but lower-casing can change the
+        // length: "İ" becomes "i" plus a combining dot. So each position in `low` maps back to the character in `text`
+        // it came from, or the highlight slides one letter late after every such character.
         const low = text.toLowerCase();
-        const marks = new Array(text.length).fill(false);
+        const from = [];
+        for (let i = 0; i < text.length;) {
+            const ch = String.fromCodePoint(text.codePointAt(i));
+            for (let k = ch.toLowerCase().length; k > 0; k--) from.push(i);
+            i += ch.length;
+        }
+        if (from.length !== low.length) for (let i = 0; i < low.length; i++) from[i] = Math.min(i, text.length - 1);
+        const marks = new Array(text.length).fill(false); // set on the first code unit of each marked character
         for (const t of tokens) {
             let i = low.indexOf(t);
-            while (t && i >= 0) { for (let k = i; k < i + t.length; k++) marks[k] = true; i = low.indexOf(t, i + t.length); }
+            while (t && i >= 0) { for (let k = i; k < i + t.length; k++) marks[from[k]] = true; i = low.indexOf(t, i + t.length); }
         }
+        // Walk whole characters so a mark never splits an emoji's surrogate pair.
         let out = "", open = false;
-        for (let i = 0; i < text.length; i++) {
+        for (let i = 0; i < text.length;) {
+            const ch = String.fromCodePoint(text.codePointAt(i));
             if (marks[i] !== open) { out += marks[i] ? "<mark>" : "</mark>"; open = marks[i]; }
-            out += esc(text[i]);
+            out += esc(ch);
+            i += ch.length;
         }
         return out + (open ? "</mark>" : "");
     }
@@ -313,6 +326,8 @@
     const crumbList = (t) => t.slice(-2);
 
     let lastMatches = null;
+    // Ties sort by name the way people read numbers ("Level 2" before "Level 10"). One collator: big trees sort fast.
+    const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
     function tokens() { return query.toLowerCase().split(/\s+/).filter(Boolean); }
     function flatMatches() {
         if (lastMatches && lastMatches.q === query && lastMatches.flat === flat) return lastMatches.list;
@@ -326,7 +341,7 @@
             if (e.folder) score += 0.5;
             list.push({ e, score });
         }
-        list.sort((a, b) => b.score - a.score || (a.e.n.title || "").localeCompare(b.e.n.title || ""));
+        list.sort((a, b) => b.score - a.score || byName.compare(a.e.n.title || "", b.e.n.title || ""));
         lastMatches = { q: query, flat, list };
         return list;
     }
@@ -442,11 +457,23 @@
     const saveUi = () => Lemon.store.set("bookmarksUi", ui).catch(() => {});
     function go(folderId) {
         if (!byId.has(folderId)) return;
+        // The redraw replaces the folder tile or nav button that was pressed. Keep the keyboard in the column: a press in
+        // the list goes on to the first item of the opened folder, a press in the nav row to the button now standing for
+        // where it went (the root tab, or the back arrow so Enter keeps climbing). Anything else in the column (a
+        // snackbar's "Show") also lands on the first item; focus still on screen (the search field) stays put.
+        const a = document.activeElement;
+        const fromNav = !!a && nav.contains(a);
+        if (a && host.contains(a) && !fromNav) focusAfter = { id: null, fallback: true };
         ui.folderId = folderId;
         saveUi();
         if (query) { query = ""; search.value = ""; searchClear.hidden = true; }
         render();
         body.scrollTop = 0;
+        if (fromNav && !a.isConnected) {
+            const b = nav.querySelector(`[data-nav="${CSS.escape(folderId)}"]`) || nav.querySelector(".bm-up, .bm-root.on")
+                || body.querySelector(".bm-link");
+            if (b) b.focus();
+        }
     }
 
     function report(err) {
@@ -762,9 +789,15 @@
                 try {
                     if (editing) { focusAfter = { id: n.id, fallback: true }; await BM.update(n.id, { title: name }); closeSheet(); }
                     else {
-                        const made = await BM.create({ parentId: f.folder.value, title: name });
+                        const parent = f.folder.value;
+                        const made = await BM.create({ parentId: parent, title: name });
                         closeSheet();
-                        focusMade(made.id); // e.g. the welcome card's "New folder" button is gone after this
+                        // Made somewhere else: open that folder so the new one is in view (as adding a bookmark does).
+                        if (parent !== ui.folderId) { go(parent); snack(`Created ${name} in ${folderName(byId.get(parent))}`); }
+                        // Focus the new folder once it is drawn. The fallback keeps the keyboard in the list should the
+                        // button that opened the sheet be gone (the welcome card's "New folder", or a nav row redrawn).
+                        focusAfter = { id: made.id, fallback: true };
+                        if (byId.has(made.id)) applyFocusAfter();
                     }
                 } catch (err) { focusAfter = null; report(err); }
             },
@@ -931,7 +964,7 @@
         }
         if (n && !n.unmodifiable && e.key === "F2") { e.preventDefault(); act(n.url ? "edit" : "rename", n.id); return; }
         if (n && !n.url && e.key === " ") { e.preventDefault(); go(n.id); return; }
-        if (!query && e.key === "Backspace") { const t = trail(ui.folderId); if (t.length > 1) { e.preventDefault(); go(t[t.length - 2].id); requestAnimationFrame(() => { const f = body.querySelector(".bm-link"); if (f) f.focus(); }); } return; }
+        if (!query && e.key === "Backspace") { const t = trail(ui.folderId); if (t.length > 1) { e.preventDefault(); go(t[t.length - 2].id); } return; } // go() keeps focus in the list
         // Arrow keys move between items (grid: by row too).
         const items = [...body.querySelectorAll(".bm-item")];
         const i = items.indexOf(it);

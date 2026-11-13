@@ -21,6 +21,11 @@
     // for it (a field inside a folded column is display: none and cannot take focus).
     const openCol = (side) => new Promise((done) => {
         const cls = side === "left" ? "fold-todo" : "fold-bookmarks", root = document.documentElement;
+        const other = side === "left" ? "full-bookmarks" : "full-todo";
+        // Hidden under the other column's full page: step that one back to half first, then focus inside.
+        if (!root.classList.contains(cls) && root.classList.contains(other) && window.LemonLayout && window.LemonLayout.reveal) {
+            return window.LemonLayout.reveal(side).then(done, done);
+        }
         if (!root.classList.contains(cls) || !window.LemonLayout) return done();
         const end = () => { mo.disconnect(); clearTimeout(timer); done(); };
         const mo = new MutationObserver(() => { if (!root.classList.contains(cls)) end(); });
@@ -30,13 +35,26 @@
     });
     const inRight = (fn) => { openCol("right").then(fn); return true; };
 
-    let sheet = null;
+    // Every shortcut key in the list above (the to-do column also takes a capital N for a new to-do).
+    const SHORTCUTS = new Set(KEYS.flatMap(([, list]) => list.map(([k]) => k)).filter((k) => k !== "Esc").concat("N"));
+
+    let sheet = null, back = null;
     function toggleHelp(force) {
         const show = force !== undefined ? force : !sheet;
-        if (!show) { if (sheet) { sheet.remove(); sheet = null; } return; }
+        if (!show) {
+            if (!sheet) return;
+            sheet.remove(); sheet = null;
+            // Give the keyboard its place back (the bookmark, or the weather details the sheet was opened over).
+            const to = back; back = null;
+            if (to && to !== document.body && to.isConnected && to.focus) to.focus({ preventScroll: true });
+            return;
+        }
+        if (sheet) return;
+        back = document.activeElement;
         sheet = document.createElement("div");
         sheet.className = "kb-sheet";
         sheet.setAttribute("role", "dialog");
+        sheet.setAttribute("aria-modal", "true");
         sheet.setAttribute("aria-label", "Keyboard shortcuts");
         sheet.innerHTML = `<div class="kb-card"><div class="kb-head"><h2>Keyboard shortcuts</h2>
             <button type="button" class="icon-btn kb-x" aria-label="Close">&times;</button></div>
@@ -48,12 +66,45 @@
         sheet.querySelector(".kb-x").focus();
     }
 
+    // The sheet is modal and covers the page, so while it is open it gets every key first and nothing under it sees
+    // one. This listener is on window in the capture phase, so it runs before the weather details' capture listener on
+    // document and the to-do column's document listener: those close their own dialog on Escape, and without this one
+    // Escape over the sheet closed the details or the open to-do under it instead of the sheet. Stopping the event
+    // does not stop its default action, so Enter and Space still press the close button and the arrow and page keys
+    // still scroll a long sheet.
+    const typingIn = (t) => !!t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+    window.addEventListener("keydown", (e) => {
+        if (!sheet) {
+            // Another modal dialog is open (the weather details, the bookmark Add sheet): keep the page shortcuts away
+            // from the page behind it. Only "?" and the details' own toggle "w" go through. Escape, Tab, the arrows and
+            // Enter are not shortcuts, so the dialog still gets them. A dialog counts while the focus is in it (or
+            // nowhere, after a click on its text): a closing one has already given the focus back to the page.
+            if (typingIn(e.target) || e.ctrlKey || e.metaKey || e.altKey || !SHORTCUTS.has(e.key) || e.key === "?") return;
+            const t = e.target, open = [...document.querySelectorAll("[aria-modal='true']")]
+                .find((d) => !d.hidden && d.getClientRects().length && (d.contains(t) || t === document.body || !t));
+            if (open && !(e.key === "w" && open.id === "dlw-detail")) e.stopPropagation();
+            return;
+        }
+        e.stopPropagation();
+        if (e.key === "Escape" || (e.key === "?" && !e.ctrlKey && !e.metaKey && !e.altKey)) {
+            e.preventDefault(); toggleHelp(false); return;
+        }
+        if (e.key !== "Tab") return;
+        // Keep the focus inside the sheet (it can also be on body after a click on the card's text).
+        const f = [...sheet.querySelectorAll("button, a[href], [tabindex='0']")].filter((el) => el.offsetParent !== null);
+        if (!f.length) return;
+        const first = f[0], end = f[f.length - 1], at = document.activeElement;
+        if (!sheet.contains(at) || (e.shiftKey && at === first) || (!e.shiftKey && at === end)) {
+            e.preventDefault(); (e.shiftKey ? end : first).focus();
+        }
+    }, true);
+    // Clicks on the sheet are the sheet's alone: the weather details close on a pointerdown outside themselves, and the
+    // sheet over them is outside.
+    window.addEventListener("pointerdown", (e) => { if (sheet && sheet.contains(e.target)) e.stopPropagation(); }, true);
+
     document.addEventListener("keydown", (e) => {
         if (e.defaultPrevented) return;
-        if (e.key === "Escape" && sheet) { e.preventDefault(); toggleHelp(false); return; }
-        const t = e.target;
-        const typing = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
-        if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (typingIn(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
         const visible = (sel) => { const el = $(sel); return !!el && el.offsetParent !== null; };
         const act = {
             "s": () => focus(".sb-input"),

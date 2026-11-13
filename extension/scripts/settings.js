@@ -130,7 +130,8 @@
                     sw("todo", "To-do column", "The list on the left"),
                     sw("bookmarks", "Bookmarks column", "When hidden, settings wait behind a small gear in the corner"),
                     sw("apps", "Google apps", "The app shortcuts under your bookmarks"),
-                    seg("bookmarksView", "Bookmarks as", [["grid", "Grid", "grid"], ["list", "List", "list"]]),
+                    // A short label: the Grid and List buttons leave it about 90 px, and "Bookmarks as" took two lines.
+                    seg("bookmarksView", "Bookmarks", [["grid", "Grid", "grid"], ["list", "List", "list"]]),
                 ])}
                 ${group("Wallpaper", "image", [
                     `<div class="st-row st-row-stack st-wp-host"></div>`,
@@ -318,7 +319,12 @@
     loc.addEventListener("change", saveLocation);
     loc.addEventListener("keydown", (e) => {
         if (e.key === "Enter") { e.preventDefault(); saveLocation(); }
-        else if (e.key === "Escape") { loc.value = Lemon.settings.get().location || ""; }
+        else if (e.key === "Escape") {
+            // Escape first takes back the typing and keeps Settings open (the panel closes only on an Escape nobody
+            // handled). With nothing to take back it goes on and closes Settings as usual.
+            const saved = Lemon.settings.get().location || "";
+            if (loc.value !== saved) { e.preventDefault(); loc.value = saved; }
+        }
     });
 
     // Opacity: the panels follow the slider at once; the value is saved when it settles.
@@ -408,23 +414,10 @@
 
     // Import takes only what Material Desk itself saves, each part checked, so a stray JSON file cannot write junk keys.
     const isPlain = (v) => !!v && typeof v === "object" && !Array.isArray(v);
-    const ENGINE_IDS = ENGINES.map(([v]) => v);
-    function cleanSettings(raw) {
-        const d = Lemon.settings.defaults, out = {};
-        for (const [k, def] of Object.entries(d)) {
-            const v = raw[k];
-            if (v === undefined || typeof v !== typeof def) continue;
-            if (typeof v === "number" && !Number.isFinite(v)) continue;
-            out[k] = v;
-        }
-        if (out.units !== undefined && !["F", "C"].includes(out.units)) delete out.units;
-        if (out.engine !== undefined && !ENGINE_IDS.includes(out.engine)) delete out.engine;
-        if (out.bookmarksView !== undefined && !["grid", "list"].includes(out.bookmarksView)) delete out.bookmarksView;
-        if (out.panelOpacity !== undefined) out.panelOpacity = Math.max(60, Math.min(100, Math.round(out.panelOpacity)));
-        for (const k of Object.keys(RANGES)) if (out[k] !== undefined) out[k] = Math.max(RANGES[k].min, Math.min(RANGES[k].max, Math.round(out[k])));
-        if (out.location !== undefined) out.location = out.location.trim().slice(0, 200);
-        return { ...d, ...out };
-    }
+    // The per-key checks live in lemon.js (Lemon.settings.clean), which runs the same ones on every load. A key missing
+    // from the file takes its default. That is on purpose for weatherAsked: a file from before the weather question
+    // asks it again, since the store policy wants consent before a location is used.
+    const cleanSettings = (raw) => ({ ...Lemon.settings.defaults, ...Lemon.settings.clean(raw) });
     // Returns the keys to write, or throws with a short reason.
     function cleanImport(parsed) {
         if (!isPlain(parsed) || parsed.app !== "lemon-newtab" || !isPlain(parsed.data)) throw new Error("it was not exported from Material Desk");
@@ -439,10 +432,15 @@
         }
         if (typeof src.myntImported === "boolean") out.myntImported = src.myntImported;
         // A built-in wallpaper (an uploaded picture is not exported): its id and dim. The colors are not taken from the
-        // file: with none, wallpaper.js makes them again from the built-in picture after the reload.
+        // file. The scheme already in use for that picture is kept (or the precomputed one of the default), because
+        // the import paints at once and an empty scheme shows the CSS fallback colors until the reload. Only a
+        // picture with neither goes without, and wallpaper.js makes its scheme again after the reload.
         const wp = src.wallpaper;
         if (isPlain(wp) && Lemon.look.builtins.some(([id]) => id === wp.id)) {
-            out.wallpaper = { id: wp.id, dim: Math.max(0, Math.min(80, Math.round(+wp.dim) || 0)), colors: {} };
+            const now = Lemon.look.wallpaper(), def = Lemon.look.defaultWallpaper;
+            const colors = now.id === wp.id && now.colors && now.colors.primary ? now.colors
+                : wp.id === def.id ? def.colors : {};
+            out.wallpaper = { id: wp.id, dim: Math.max(0, Math.min(80, Math.round(+wp.dim) || 0)), colors };
         }
         if (!out.settings && !out.todo && !out.bookmarksUi && !out.wallpaper) throw new Error("no saved data in it");
         return out;

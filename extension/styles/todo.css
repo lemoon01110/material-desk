@@ -31,7 +31,9 @@
 :where(#todo-col) .td-flex { flex: 1; }
 :where(#todo-col) .td-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 :where(#todo-col, .td-pop) [hidden] { display: none !important; }
-:where(#todo-col) .td-n { font: 600 0.74rem/1 var(--f-display); font-variant-numeric: tabular-nums; opacity: 0.8; }
+:where(#todo-col) .td-n { font-family: inherit; font-size: 1em; line-height: inherit; font-weight: 600;
+    font-variant-numeric: tabular-nums; opacity: 0.7; }   /* same font and size as its label, so it sits on the same
+                                                              line (owner 2026-11-13: smaller numbers looked raised) */
 :where(#todo-col) .td-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--td-outline)); flex: none; }
 :where(#todo-col) .td-hint { color: var(--text-2); font-size: 0.8rem; margin: 0; }
 :where(#todo-col) kbd { font: 600 0.72rem/1 var(--f-display); padding: 3px 6px; border-radius: 6px;
@@ -42,6 +44,9 @@
 .td-h { margin-right: 6px; }
 .td-progress { display: flex; align-items: center; gap: 7px; color: var(--text-2); font-size: 0.8rem; white-space: nowrap; min-width: 0; }
 .td-progress span { overflow: hidden; text-overflow: ellipsis; }
+/* "today" in the progress label only where the column has room for it (todo.js renderProgress). */
+.td-prog-x { display: none; }
+:is(.wide-todo, .full-todo) .td-prog-x { display: inline; }
 .td-ring { width: 20px; height: 20px; flex: none; transform: rotate(-90deg); }
 .td-ring circle { fill: none; stroke-width: 3.2; }
 .td-ring-t { stroke: var(--line); }
@@ -80,7 +85,9 @@
 
 .td-nav { display: flex; flex-direction: column; gap: 8px; }
 .td-views { display: flex; padding: 3px; gap: 2px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--dl-surface_container_lowest, #140c0a) 45%, transparent); }
-.td-seg { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 10px;
+/* The four tabs share the 320px pill: tight padding and min-width 0 so they shrink to fit instead of running past
+   its edge (counts above 99 show as 99+, todo.js renderNav). A wide column gives them their normal size below. */
+.td-seg { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 32px; padding: 0 8px;
     border: 0; border-radius: var(--r-pill); background: transparent; color: var(--text-2); font-size: 0.84rem; font-weight: 600; white-space: nowrap;
     transition: background 0.18s var(--td-ease), color 0.18s var(--td-ease); }
 .td-seg:hover { background: var(--td-hover); color: var(--text); }
@@ -163,8 +170,11 @@
     text-align: left; color: var(--text); border-radius: var(--r-md); }
 .td-ttl { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.94rem; line-height: 1.32;
     overflow-wrap: anywhere; }
+/* The priority marks sit next to the clamped title, not inside it, so a long title cannot cut them off. */
+.td-ttl-row { display: flex; align-items: baseline; min-width: 0; }
+.td-ttl-row .td-ttl { min-width: 0; }
 .td-untitled { color: var(--text-2); font-style: italic; }
-.td-pri { margin-left: 6px; font: 700 0.86rem/1 var(--f-display); color: var(--pc); letter-spacing: 0.04em; }
+.td-pri { flex: none; margin-left: 6px; font: 700 0.86rem/1 var(--f-display); color: var(--pc); letter-spacing: 0.04em; }
 .td-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 0.77rem; color: var(--text-2); line-height: 1.3; }
 .td-due { display: inline-flex; align-items: center; gap: 4px; color: var(--td-tertiary); font-weight: 600; white-space: nowrap; }
 .td-due .td-i, .td-mi .td-i { width: 14px; height: 14px; }

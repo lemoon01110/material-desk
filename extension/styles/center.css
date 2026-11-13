@@ -64,8 +64,9 @@
 /* The small search glyph that stands for "Chrome default" on the cookie. */
 .sb-glyph { display: block; width: 20px; height: 20px; fill: currentColor; }
 #sb-engines li i .sb-glyph { width: 16px; height: 16px; }
-/* Suggestions never run past the page's bottom edge: they scroll instead. */
-.sb-suggest { right: 0; max-height: min(330px, 38cqh); overflow-y: auto; scrollbar-width: thin;
+/* Suggestions never run past the page's bottom edge: they scroll instead. 40cqh still holds all seven rows (285px)
+   at 1366x768, where 38cqh left a scroll bar for 5px. */
+.sb-suggest { right: 0; max-height: min(330px, 40cqh); overflow-y: auto; scrollbar-width: thin;
     scrollbar-color: var(--line) transparent; }
 .sb-menu li { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: var(--r-md);
     cursor: pointer; color: var(--text); outline: 0; }

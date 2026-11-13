@@ -103,14 +103,44 @@
     };
 
     // ---- settings ------------------------------------------------------------------------------------------------
+    // What a saved value may be beyond its default's type: the choices of a pick-one setting and the range of a
+    // number (the same limits as the controls in Settings). Damaged storage, an old cache or an imported file must
+    // not reach the page as engine "nope" or a panel opacity of "abc%".
+    const CHOICES = {
+        units: ["F", "C"],
+        engine: ["default", "google", "duckduckgo", "bing", "brave", "wikipedia", "youtube"],
+        bookmarksView: ["grid", "list"],
+        todoSize: ["normal", "wide", "full"],
+        bookmarksSize: ["normal", "wide", "full"],
+    };
+    const LIMITS = { panelOpacity: [60, 100], magSize: [0, 60], magSpread: [50, 300], magLift: [0, 24] };
+    // The keys of `raw` that are known settings with a usable value (numbers rounded into range). Keys that are
+    // missing or bad are left out, so the caller decides what fills them.
+    function cleanSettings(raw) {
+        const out = {};
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+        for (const [k, def] of Object.entries(DEFAULTS)) {
+            let v = raw[k];
+            if (v === undefined || typeof v !== typeof def) continue;
+            if (typeof v === "number") {
+                if (!Number.isFinite(v)) continue;
+                if (LIMITS[k]) v = Math.max(LIMITS[k][0], Math.min(LIMITS[k][1], Math.round(v)));
+            }
+            if (CHOICES[k] && !CHOICES[k].includes(v)) continue;
+            if (k === "location") v = v.trim().slice(0, 200);
+            out[k] = v;
+        }
+        return out;
+    }
     let current = { ...DEFAULTS };
-    try { Object.assign(current, JSON.parse(localStorage.getItem("lemon:settingsCache") || "{}")); } catch (e) { /* */ }
+    try { Object.assign(current, cleanSettings(JSON.parse(localStorage.getItem("lemon:settingsCache") || "{}"))); } catch (e) { /* */ }
     const listeners = [];
     const cacheSettings = () => { try { localStorage.setItem("lemon:settingsCache", JSON.stringify(current)); } catch (e) { /* */ } };
     const tell = (patch) => listeners.forEach((cb) => { try { cb({ ...current }, patch); } catch (e) { console.error(e); } });
     const mine = new Set();   // settings this tab wrote, so their storage event is not taken for another tab's change
     const settings = {
         defaults: DEFAULTS,
+        clean: cleanSettings,   // also used by Import in settings.js
         get: () => ({ ...current }),
         async set(patch) {
             const before = current;
@@ -138,7 +168,7 @@
             if (area !== "local" || !changes.settings) return;
             const raw = changes.settings.newValue, sent = JSON.stringify(raw);
             if (mine.delete(sent)) return;
-            const next = { ...DEFAULTS, ...(raw && typeof raw === "object" ? raw : {}) }, patch = {};
+            const next = { ...DEFAULTS, ...cleanSettings(raw) }, patch = {};
             for (const k of Object.keys(next)) if (JSON.stringify(next[k]) !== JSON.stringify(current[k])) patch[k] = next[k];
             if (!Object.keys(patch).length) return;
             current = next;
@@ -148,7 +178,7 @@
         });
     }
     const ready = Promise.all([store.get("settings", {}), ranBefore]).then(async ([saved, before]) => {
-        if (!saved || typeof saved !== "object") saved = {};
+        if (!saved || typeof saved !== "object" || Array.isArray(saved)) saved = {};
         const fill = {};
         // "Chrome default" became the default engine later. An install from before that never saved an engine (it never
         // changed a setting) keeps searching with Google, as it always did. A new install gets "default".
@@ -166,7 +196,9 @@
             mine.add(sent);   // this tab's own write, not another tab's change
             try { await store.set("settings", saved); } catch (e) { mine.delete(sent); console.warn("settings", e); }
         }
-        current = { ...DEFAULTS, ...saved };
+        // The checks run after the migration above, which goes by which keys were ever saved. A bad value falls back
+        // to its default here; storage keeps it until the next change writes this clean copy.
+        current = { ...DEFAULTS, ...cleanSettings(saved) };
         try { localStorage.setItem("lemon:settingsCache", JSON.stringify(current)); } catch (e) { /* */ }
         applySettings();
         return current;
@@ -278,7 +310,11 @@
     function cleanWallpaper(w) {
         if (!w || typeof w !== "object" || typeof w.id !== "string") return { ...DEFAULT_WALLPAPER };
         const known = w.id === "custom" || BUILTINS.some(([id]) => id === w.id);
-        return known ? w : { ...DEFAULT_WALLPAPER };
+        if (!known) return { ...DEFAULT_WALLPAPER };
+        // The default wallpaper saved without its scheme (an imported file carries none, so does damaged storage):
+        // use the precomputed one that a new install paints with, so the page never shows the CSS fallback colors.
+        if (w.id === DEFAULT_WALLPAPER.id && !(w.colors && w.colors.primary)) return { ...w, colors: DEFAULT_COLORS };
+        return w;
     }
     async function showCustom(w) {
         let blob = null;

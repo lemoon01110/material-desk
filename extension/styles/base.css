@@ -195,11 +195,16 @@ input, textarea { caret-color: var(--dl-primary, #ffb4a4); }
 .wide-todo.wide-bookmarks .fold-left { left: calc(50% - var(--gap) / 2); }
 .wide-todo.wide-bookmarks .fold-right { left: calc(50% + var(--gap) / 2); }
 
-/* The fold and size animation (collapse.js morph): a stand-in panel moves while the real column waits hidden. */
-.fold-ghost { position: fixed; z-index: 9; pointer-events: none; background: var(--panel); border-radius: var(--r-xl);
+/* The fold and size animation (collapse.js morph): a stand-in panel moves while the real column waits hidden. The
+   ghost takes clicks while it moves (a click on it folds or opens the column again), not while it fades out. */
+.fold-ghost { position: fixed; z-index: 9; cursor: pointer; background: var(--panel); border-radius: var(--r-xl);
     box-shadow: var(--shadow); backdrop-filter: blur(18px) saturate(1.1); }
+.fold-ghost.leaving { pointer-events: none; }
 .fold-morphing #todo-col, .fold-morphing #right-col, .fold-morphing .fold-handle { transition: none !important; }
-.morph-todo #todo-col, .morph-todo .fold-left, .morph-bookmarks #right-col, .morph-bookmarks .fold-right { visibility: hidden; }
+/* Hidden by opacity, not visibility: a hidden element loses the keyboard focus, and the folded icon has to be
+   able to take it while the ghost still moves (collapse.js setState). No clicks on what cannot be seen. */
+.morph-todo #todo-col, .morph-todo .fold-left, .morph-bookmarks #right-col, .morph-bookmarks .fold-right {
+    opacity: 0; pointer-events: none; }
 
 /* No animation while a new tab paints (collapse.js removes .lemon-loading once the layout is settled). */
 .lemon-loading *, .lemon-loading *::before, .lemon-loading *::after { transition: none !important; animation: none !important; }
