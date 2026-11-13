@@ -1,7 +1,8 @@
 /*
  * Weather for the new tab, in #weather-host under the search bar.
  * Data: Open-Meteo through openMeteoForecast() in open-meteo.js; place from GPS when the "useGPS" setting is on, else
- * the typed `location`, else the internet address. Cached 15 minutes; refetched when the place settings change,
+ * the typed `location`, else the internet address. Cached 15 minutes (a failed refresh is tried again after 30 s,
+ * 1, 2 and 5 minutes, and when the network comes back); refetched when the place settings change,
  * redrawn when the units change. Cached data older than 45 minutes says how old it is.
  * Not a card but a band with no box, so it sits lightly on the wallpaper: a hairline
  * above and below, and between them one sideways row: conditions, Now (the only glass item), the next 12 hours with
@@ -758,6 +759,12 @@
 
     let card = null, detail = null, last = null, opener = null, suppressClick = false, failure = null, loading = false;
     let again = false, refocus = null;
+    // A refresh that fails (the network was down a moment, the service did not answer) is tried again soon, not only at
+    // the next 15-minute refresh: after 30 s, 1, 2 and 5 minutes, then every 5 minutes until one works. Before this a
+    // single miss left hours-old weather up (owner, 2026-11-12: "Why is the weather still from 5 hrs ago").
+    const RETRY_S = [30, 60, 120, 300];
+    let retryTimer = 0, retryStep = 0;
+    const LOAD_LIMIT_MS = 30000;   // a whole refresh (place and forecast) gives up after 30 s, so none can hang for good
 
     // Mark what was clicked in the band (an hour in the chart, a day in the list, a tile) and bring it into view.
     function markPick(it) {
@@ -974,13 +981,19 @@
         loading = true;
         card.classList.add("dlb-loading");
         try {
-            const w = await window.openMeteoForecast(await where());
+            let cap = 0;
+            const w = await Promise.race([
+                (async () => window.openMeteoForecast(await where()))(),
+                new Promise((_, no) => { cap = setTimeout(() => no(new DOMException("The refresh took too long", "TimeoutError")), LOAD_LIMIT_MS); }),
+            ]).finally(() => clearTimeout(cap));
             w.placeKey = place;
             localStorage.setItem(KEY, JSON.stringify(w));
             last = w; failure = null;
+            clearTimeout(retryTimer); retryTimer = 0; retryStep = 0;
             redraw();
         } catch (e) {
             failure = e;
+            retrySoon();
             if (!cached) { last = null; render(card, null); closeDetail(); }
             else redraw();   // the cache stays, marked with its age once it is old
         } finally {
@@ -990,13 +1003,26 @@
         }
     }
 
+    function retrySoon() {
+        clearTimeout(retryTimer);
+        const s = RETRY_S[Math.min(retryStep++, RETRY_S.length - 1)];
+        // A hidden tab waits: coming back to it refreshes anyway (the visibilitychange handler).
+        retryTimer = setTimeout(() => { retryTimer = 0; if (!document.hidden) load(false); }, s * 1000);
+    }
+
     function where() {
         const s = Lemon.settings.get();
         const typed = s.location || "auto:ip";
         if (!s.useGPS || !navigator.geolocation) return Promise.resolve(typed);
-        return new Promise((resolve) => navigator.geolocation.getCurrentPosition(
-            (p) => resolve(`${p.coords.latitude.toFixed(3)},${p.coords.longitude.toFixed(3)}`),
-            () => resolve(typed), { timeout: 6000, maximumAge: 30 * 60 * 1000 }));
+        // Its own 8 s cap too: Chrome's timeout option does not always fire, and a lookup that never answers must not
+        // hold up the weather.
+        return new Promise((resolve) => {
+            const cap = setTimeout(() => resolve(typed), 8000);
+            const done = (v) => { clearTimeout(cap); resolve(v); };
+            navigator.geolocation.getCurrentPosition(
+                (p) => done(`${p.coords.latitude.toFixed(3)},${p.coords.longitude.toFixed(3)}`),
+                () => done(typed), { timeout: 6000, maximumAge: 30 * 60 * 1000 });
+        });
     }
 
     async function start() {
@@ -1022,8 +1048,9 @@
             if ("useGPS" in patch || "location" in patch) load(true);
             else if ("units" in patch && last) redraw();
         });
-        // Keep a long-open tab current.
+        // Keep a long-open tab current, and refresh as soon as the network is back.
         setInterval(() => { if (!document.hidden) load(false); }, FRESH);
+        window.addEventListener("online", () => { if (!document.hidden) load(false); });
     }
 
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
