@@ -188,9 +188,6 @@
 .dlb-rd:hover { background: color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 13%, transparent); }
 .dlb-tl { display: flex; align-items: center; gap: 7px; max-width: 100%; font: 600 0.9rem/1.2 var(--f-body);
     color: var(--ink-2); white-space: nowrap; }
-.dlb-ic { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: none;
-    background: var(--wi-shape); color: var(--wi-on); }
-.dlb-ic svg { width: 14px; height: 14px; fill: currentColor; display: block; }
 .dlb-v { max-width: 100%; font: 700 1.45rem/1.1 var(--f-display); font-variant-numeric: tabular-nums; white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis; }
 .dlb-s { max-width: 100%; font-size: 0.88rem; line-height: 1.2; color: var(--ink-2); white-space: nowrap; overflow: hidden;
@@ -273,8 +270,6 @@
     .dlb-read { border-radius: 24px; padding: 5px; gap: 4px; }
     .dlb-rd { padding: 4px 11px; gap: 2px; border-radius: 19px; }
     .dlb-tl { font-size: 0.82rem; gap: 6px; }
-    .dlb-ic { width: 19px; height: 19px; }
-    .dlb-ic svg { width: 12px; height: 12px; }
     .dlb-v { font-size: 1.15rem; }
     .dlb-s { font-size: 0.8rem; }
     .dlb-col { padding: 6px 2px; }
@@ -300,8 +295,6 @@
     .dlb-range .dlw-bar { height: 4px; }
     .dlb-rd { padding: 2px 9px; gap: 1px; }
     .dlb-tl { font-size: 0.78rem; }
-    .dlb-ic { width: 17px; height: 17px; }
-    .dlb-ic svg { width: 11px; height: 11px; }
     .dlb-v { font-size: 1.05rem; }
     .dlb-s { font-size: 0.76rem; }
     .dlb-col { padding: 4px 1px; }
@@ -354,8 +347,8 @@
 .dlw-detail {
     position: absolute; inset: 0; z-index: 4; margin: 0 auto; width: min(100%, 1100px);
     display: flex; flex-direction: column; border-radius: var(--r-xl); overflow: hidden;
-    /* 98% opaque (the band's bright text showed through at 96%): a blur behind it could not be seen, so there is none (it only cost frames on opening). */
-    background: color-mix(in srgb, var(--dl-surface_container, #271d1b) 98%, transparent);
+    /* Fully opaque: at 98% the band's bright text still showed through under the 10 days (owner screenshot 2026-11-12). */
+    background: var(--dl-surface_container, #271d1b);
     box-shadow: 0 12px 40px rgb(0 0 0 / 0.45);
     color: var(--dl-on_surface, #f1dfdb); font-family: var(--f-body); cursor: auto;
     container: dlwd / inline-size;
@@ -378,13 +371,20 @@
 .dlw-close { align-self: flex-start; flex: none; background: var(--dl-surface_container_highest, #3d3230); }
 .dlw-d-body { flex: 1; min-height: 0; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent;
     padding: 2px 20px 20px; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-    grid-template-areas: "chart chart" "days grid"; gap: 14px; align-items: start; align-content: start; outline: 0; }
+    grid-template-areas: "chart chart" "days grid"; gap: 14px; outline: 0;
+    /* Tight (owner 2026-11-12: "it isnt tight and nice"): the 10 days and the tiles share one height, and the 24-hour
+       chart (a third) and they (two thirds) share whatever height is left, so the panel has no empty strip below the days and no blank space at the
+       bottom. */
+    grid-template-rows: minmax(max-content, 1fr) minmax(max-content, 2fr) auto; align-items: stretch; }
 .dlw-d-body.dlw-more { mask-image: linear-gradient(#000 calc(100% - 28px), transparent); }
 .dlw-d-body:focus-visible { box-shadow: inset 0 0 0 2px var(--dl-primary, #ffb4a4); border-radius: var(--r-lg); }
 .dlw-d-sec { border-radius: var(--r-lg); padding: 14px 18px 16px;
     background: var(--dl-surface_container_high, #322825); min-width: 0; }
-.dlw-d-chartsec { grid-area: chart; }
-.dlw-d-days { grid-area: days; }
+.dlw-d-chartsec { grid-area: chart; display: flex; flex-direction: column; }
+.dlw-d-chartsec .dlw-chart { flex: 1 0 auto; }   /* its set height is the least, it grows into spare room */
+.dlw-d-days { grid-area: days; display: flex; flex-direction: column; }
+.dlw-d-days .dlw-ten { flex: 1; display: flex; flex-direction: column; }
+.dlw-d-days .dlw-ten li { flex: 1; }
 .dlw-d-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .dlw-d-h h3 { margin: 0; font: 700 1rem var(--f-display); }
 .dlw-legend { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--dl-on_surface_variant, #d8c2bd); }
@@ -431,7 +431,6 @@
 .dlw-ten .wi { width: 28px; height: 28px; }
 .dlw-dp { display: inline-flex; align-items: center; gap: 2px; font: 600 0.78rem var(--f-display);
     color: var(--dl-on_surface_variant, #d8c2bd); white-space: nowrap; }
-.dlw-dp svg { width: 11px; height: 11px; fill: currentColor; }
 .dlw-dp-on { color: var(--dl-primary, #ffb4a4); }
 .dlw-lo, .dlw-hi { font: 700 0.95rem var(--f-display); text-align: right; font-variant-numeric: tabular-nums; }
 .dlw-lo { color: var(--dl-on_surface_variant, #d8c2bd); font-weight: 600; }
@@ -441,34 +440,39 @@
 
 /* Metrics grid: three columns; wind is tall (compass), sun and air quality are wide. */
 .dlw-d-grid { grid-area: grid; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-flow: row dense;
-    gap: 10px; padding: 0; background: none; }
+    grid-auto-rows: 1fr; gap: 10px; padding: 0; background: none; }
+/* No holes in the three columns: a tile whose neighbor is missing (feels like, visibility) takes two cells, air quality
+   takes the whole last row. */
+.dlw-w2 { grid-column: span 2; }
 .dlw-tile { position: relative; display: flex; flex-direction: column; gap: 2px; min-width: 0; min-height: 94px;
     padding: 12px 14px; border-radius: 20px; background: var(--dl-surface_container_high, #322825); }
 /* The tile picked in the band. */
 .dlw-tile.dlw-on { box-shadow: inset 0 0 0 2px var(--dl-primary, #ffb4a4); }
 .dlw-tl { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--dl-on_surface_variant, #d8c2bd); }
-.dlw-tl svg { width: 15px; height: 15px; fill: currentColor; flex: none; }
-.dlw-tv { font: 700 1.45rem/1.2 var(--f-display); font-variant-numeric: tabular-nums; white-space: nowrap;
+/* Title at the top, value and note at the bottom, so a tile taller than its words has no empty strip under them. The
+   wind tile keeps its words up top and centers the compass in the room below. */
+.dlw-tile > .dlw-tl { margin-bottom: auto; padding-bottom: 6px; }
+.dlw-wind > .dlw-tl { margin-bottom: 0; }
+.dlw-tv { font: 700 1.75rem/1.2 var(--f-display); font-variant-numeric: tabular-nums; white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis; }
 .dlw-ts { font-size: 0.8rem; line-height: 1.3; color: var(--dl-on_surface_variant, #d8c2bd); }
-.dlw-trend { display: inline-flex; align-items: center; gap: 4px; }
-.dlw-trend svg { width: 14px; height: 14px; fill: currentColor; }
 .dlw-meter { position: relative; height: 6px; margin: 8px 6px 2px 0; border-radius: 3px;
     background: linear-gradient(90deg, var(--dl-secondary, #e7bdb3), var(--dl-tertiary, #dcc48c), var(--dl-error, #ffb4ab)); }
 .dlw-meter b { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; transform: translate(-50%, -50%);
     background: var(--dl-on_surface, #f1dfdb); box-shadow: 0 0 0 3px var(--dl-surface_container_high, #322825); }
 .dlw-wind { grid-row: span 2; }
-.dlw-compass { position: relative; width: 116px; height: 116px; margin: auto auto 0; }
+.dlw-compass { position: relative; width: 116px; height: 116px; margin: auto; }
 .dlw-compass svg { width: 100%; height: 100%; display: block; }
 .dlw-ring { fill: var(--dl-surface_container_highest, #3d3230); stroke: var(--dl-outline_variant, #534340); stroke-width: 1; }
 .dlw-ticks line { stroke: var(--dl-outline, #a08c88); stroke-width: 1.2; stroke-linecap: round; }
 .dlw-compass text { fill: var(--dl-on_surface_variant, #d8c2bd); font: 700 11px var(--f-display); text-anchor: middle; }
 .dlw-compass .dlw-arrow { position: absolute; inset: 0; }
 .dlw-compass .dlw-arrow svg { width: 40px; height: 40px; fill: var(--dl-primary, #ffb4a4); }
-.dlw-sun, .dlw-aqi { grid-column: span 2; }
+.dlw-sun { grid-column: span 2; }
+.dlw-aqi { grid-column: 1 / -1; }
 .dlw-sun .dlw-tv, .dlw-sun .dlw-ts { padding-right: 116px; }
 .dlw-aqi .dlw-ts { padding-right: 140px; }
-.dlw-sun .dlw-tv { font-size: 1.3rem; }
+.dlw-sun .dlw-tv { font-size: 1.5rem; }
 .dlw-sun .dlw-ts, .dlw-aqi .dlw-ts { white-space: normal; }
 .dlw-nw { white-space: nowrap; }
 .dlw-narrow { display: none; }
@@ -498,7 +502,7 @@
    10 days in the first two, the tiles (compact: no compass, sun arc or particle list, their words stay) three to a
    row beside the days. Rich but fits 1366x768 and 1366x640 with no scroll. */
 @container dlwd (max-width: 940px) {
-    .dlw-d-body { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-areas: none; grid-auto-flow: row dense;
+    .dlw-d-body { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-areas: none; grid-template-rows: minmax(max-content, 1fr); grid-auto-flow: row dense;
         grid-auto-rows: max-content; gap: 8px; padding: 0 14px 14px; align-items: stretch; }
     .dlw-d-chartsec { grid-column: 1 / -1; grid-row: 1; }
     .dlw-d-days { grid-column: 1 / 3; grid-row: 2 / span 4; }
@@ -521,7 +525,7 @@
     .dlw-ts { font-size: 0.76rem; line-height: 1.25; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
         overflow: hidden; }
     .dlw-wind { grid-row: auto; }
-    .dlw-sun, .dlw-aqi { grid-column: auto; }
+    .dlw-sun, .dlw-aqi, .dlw-w2 { grid-column: auto; }
     .dlw-compass, .dlw-arc, .dlw-pm, .dlw-t-feels, .dlw-t-dew, .dlw-wide { display: none; }
     .dlw-narrow { display: inline; }
     .dlw-sun .dlw-tv, .dlw-sun .dlw-ts, .dlw-aqi .dlw-ts { padding-right: 0; }
