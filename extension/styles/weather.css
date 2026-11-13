@@ -338,14 +338,12 @@
 /* While it is open the center sits above the side drawers (narrow windows, wide columns), so its close button is
    never under them. */
 .dlw-open #center { z-index: 7; }
-/* The panel is as tall as its content (centered in the column), so the clock, search and band fade out while it opens
-   and fade back in as it closes (owner 2026-11-12: they vanished "in a flash"). weather-card.js sets .dlw-veil with the
-   panel's own animation; visibility follows the fade so nothing hidden can be clicked or focused. */
-#clock-host, #dlDate, #search-host, #dlWeather {
-    transition: opacity 0.3s ease 0.05s, scale 0.35s cubic-bezier(0.05, 0.7, 0.1, 1), visibility 0s; }
+/* The panel is as tall as its content (centered in the column), so the clock, search and band fade out under it as it
+   opens (weather-card.js sets .dlw-veil with the panel's own animation). Closing, they are back at once, frosted and in
+   place, behind the panel as it fades away (owner 2026-11-12: fading them in broke the frost until the fade ended, then
+   it snapped, because an element below full opacity cannot blur what is behind it). */
 .dlw-veil #clock-host, .dlw-veil #dlDate, .dlw-veil #search-host, .dlw-veil #dlWeather {
-    opacity: 0; scale: 0.97; visibility: hidden;
-    transition: opacity 0.2s ease, scale 0.25s ease, visibility 0s 0.2s; }
+    opacity: 0; visibility: hidden; transition: opacity 0.2s ease, visibility 0s 0.2s; }
 .dlw-detail {
     /* Hugs its content (owner 2026-11-12: "Still so much empty space. Tighten it."), centered top to bottom, and scrolls
        inside only when the content is taller than the column. */
@@ -357,7 +355,7 @@
     color: var(--dl-on_surface, #f1dfdb); font-family: var(--f-body); cursor: auto;
     container: dlwd / inline-size;
     /* Grows out of the item that opened it (weather-card.js sets transform-origin), Material's emphasized decelerate. */
-    opacity: 0; transform: scale(0.9); transform-origin: 50% 100%;
+    opacity: 0; transform: scale(0.96); transform-origin: 50% 100%;
     transition: opacity 0.2s ease, transform 0.35s cubic-bezier(0.05, 0.7, 0.1, 1);
 }
 .dlw-detail.dlw-anim { will-change: transform, opacity; }
