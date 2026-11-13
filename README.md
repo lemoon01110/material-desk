@@ -11,7 +11,7 @@ match your wallpaper (Material You colors).
 
 - **Clock**: a round clock with a second dot and the day and month in bubbles.
 - **Search** with the search engine set in Chrome (the default, through `chrome.search`), or with Google,
-  DuckDuckGo, Bing, Brave, Wikipedia or YouTube. Suggestions from Google or DuckDuckGo if you turn them on.
+  DuckDuckGo, Bing, Brave, Wikipedia or YouTube. Suggestions from Google or DuckDuckGo if you turn them on. A mic button for voice search, and an AI Mode button while Google is the engine (both can be hidden in Settings).
 - **Weather** from Open-Meteo: now, the next hours and days, and a detail view with a 24-hour chart, 10 days, air
   quality, UV, wind and moon. It asks the first time whether to use your location, a typed place, or no weather. Units follow your browser's region (Fahrenheit in the United States) and can be changed.
 - **To-do list** with lists, sections, tags, due dates and times, repeats, subtasks, priorities, focus and natural

@@ -30,6 +30,21 @@
     background: var(--dl-primary, #ffb4a4); color: var(--dl-on_primary, #561f13);
 }
 .sb-go svg { width: 22px; height: 22px; fill: currentColor; }
+/* Mic and AI Mode: quiet round buttons before the search button. */
+.sb-icon {
+    flex: none; width: 40px; height: 40px; margin-right: -4px; padding: 0; border: 0; border-radius: var(--r-pill);
+    display: grid; place-items: center; background: transparent; color: var(--dl-primary, #ffb4a4); cursor: pointer;
+    transition: background-color 0.15s;
+}
+.sb-icon[hidden] { display: none; }
+.sb-icon svg { width: 22px; height: 22px; fill: currentColor; }
+.sb-icon:hover { background: color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 10%, transparent); }
+.sb-icon:focus-visible { outline: 2px solid var(--dl-primary, #ffb4a4); outline-offset: -2px; }
+/* Listening: the mic on its primary pill, breathing. */
+.sb-mic.sb-listen { color: var(--dl-on_primary_container, #ffdad3); background: var(--dl-primary_container, #733427);
+    animation: sb-breathe 1.2s ease-in-out infinite; }
+@keyframes sb-breathe { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--dl-primary, #ffb4a4) 25%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .sb-mic.sb-listen { animation: none; } }
 .sb-go:hover { filter: brightness(1.08); }
 
 .sb-menu {

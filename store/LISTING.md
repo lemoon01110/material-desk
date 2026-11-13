@@ -29,7 +29,7 @@ Material Desk swaps Chrome's new tab for one quiet page: a clock, search, the we
 What you get
 
 • A big round clock with the date
-• Search that uses the engine you already set in Chrome. You can pick a different one in settings.
+• Search that uses the engine you already set in Chrome. You can pick a different one in settings, search by voice with the mic, and with Google picked, ask AI Mode.
 • Weather for where you are: now, the next 24 hours and 10 days, with rain, wind, UV and air quality
 • A to-do list with due dates, repeats, subtasks and tags. Type "call mom friday 5pm" and it sets the date for you.
 • Your Chrome bookmarks, to open, search and tidy up without leaving the tab
@@ -45,7 +45,7 @@ Press ? on the page to see every shortcut. The ones you'll use most: s to search
 
 Privacy
 
-No account, no ads, no tracking. Your to-dos and settings stay in your browser. The weather asks before it uses your location. It then goes to Open-Meteo for the forecast, and to BigDataCloud or ipinfo.io for the place name (ipinfo.io also guesses your city from your internet address if your location can't be read). Search suggestions are off until you turn them on. Full policy: https://lemoon01110.github.io/material-desk/privacy.html
+No account, no ads, no tracking. Your to-dos and settings stay in your browser. The weather asks before it uses your location. It then goes to Open-Meteo for the forecast, and to BigDataCloud or ipinfo.io for the place name (ipinfo.io also guesses your city from your internet address if your location can't be read). Search suggestions are off until you turn them on. The mic uses Chrome's own speech recognition, which sends your voice to Google to turn it into text. Full policy: https://lemoon01110.github.io/material-desk/privacy.html
 
 Free and open source (GPL-3.0): https://github.com/lemoon01110/material-desk
 

@@ -86,6 +86,8 @@
                         </div>
                     </div>`,
                     sw("suggestions", "Suggestions", "Show ideas while you type"),
+                    sw("voice", "Voice search", "Mic button. Chrome sends your voice to Google to turn it into text"),
+                    sw("aiMode", "AI Mode button", "Ask Google's AI Mode, shown when Google is the engine"),
                 ])}
                 ${group("Weather", "cloud", [
                     sw("weather", "Weather card", "Under the search bar"),

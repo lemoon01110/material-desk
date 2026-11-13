@@ -34,6 +34,8 @@
                                //   wikipedia | youtube. Installs from before "default" existed keep "google" (below).
         suggestions: false,    // search suggestions while typing (new installs: off until turned on, see below)
         weatherAsked: false,   // the first-run weather question was answered (weather-card.js); nothing is sent before
+        voice: true,           // mic button in the search bar (Chrome's speech recognition, center.js)
+        aiMode: true,          // Google AI Mode button in the search bar, only while Google is the engine
         showSeconds: true,     // the clock's second dot
         weather: true,         // weather card in the center
         todo: true,            // to-do column on the left

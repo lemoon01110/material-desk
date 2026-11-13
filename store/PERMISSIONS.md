@@ -133,7 +133,7 @@ Google's User Data FAQ says data that is only processed or stored locally still 
 | Personal communications | No | |
 | **Location** | **Yes** | Device coordinates (geolocation) and an IP-based approximate location are used for the weather card and sent to Open-Meteo, BigDataCloud and ipinfo.io. The typed city name is also stored locally. |
 | **Web history** | **Yes** | The extension reads and edits the user's bookmarks (page titles and addresses). They stay on the device, but ticking this is the safe choice because bookmarks are lists of web pages. |
-| **User activity** | **Yes** | Text typed into the search bar is sent to Google or DuckDuckGo for suggestions when that setting is on and that engine is picked. Searches with "Chrome default" are handed to Chrome, which sends them to the user's own search engine. |
+| **User activity** | **Yes** | Text typed into the search bar is sent to Google or DuckDuckGo for suggestions when that setting is on and that engine is picked. Searches with "Chrome default" are handed to Chrome, which sends them to the user's own search engine. The mic button uses Chrome's built-in speech recognition (Chrome sends the audio to Google and returns text; the extension never handles audio). |
 | Website content | No | The extension reads no page content. To-dos and the uploaded wallpaper are the user's own content kept on the device and none of the categories describes them. The privacy policy covers them. |
 
 If you want to be even more careful, also tick "Website content" for the user-written to-dos. It does no harm to
