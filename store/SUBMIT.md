@@ -9,7 +9,7 @@ Files this checklist uses:
 - `store/PERMISSIONS.md`: the answers for the Privacy practices tab.
 - `docs/privacy.html`: the privacy policy, published at https://lemoon01110.github.io/material-desk/privacy.html
 - `dist/material-desk-VERSION.zip`: the package to upload (made by the store build, without `update_url`).
-- `store/`: the screenshots (1280x800) and the small promo tile (440x280). These were not made yet on 2026-11-12.
+- `store/`: the screenshots (1280x800) and the small promo tile (440x280). Made on 2026-11-12 (copies in the "Material Desk store" folder in Deliverables).
 
 ---
 
