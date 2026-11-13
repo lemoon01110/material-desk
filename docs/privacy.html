@@ -94,7 +94,7 @@ footer a { margin: 0 8px; }
             <tr><td><a href="https://open-meteo.com/en/terms#privacy">Open-Meteo</a> (geocoding)</td>
                 <td>When you use a typed city instead of your location</td>
                 <td>The city name you typed</td></tr>
-            <tr><td><a href="https://www.bigdatacloud.com/privacy-and-cookie-policy">BigDataCloud</a></td>
+            <tr><td><a href="https://www.bigdatacloud.com/privacy-and-cookie-policy">BigDataCloud</a> (api.bigdatacloud.net, which may pass the request on to its own api-bdc.io address)</td>
                 <td>When your location is used, to show the city name (once for each new location)</td>
                 <td>Latitude and longitude, rounded to 3 decimals</td></tr>
             <tr><td><a href="https://ipinfo.io/privacy-policy">ipinfo.io</a></td>
@@ -115,7 +115,7 @@ footer a { margin: 0 8px; }
 
 <section class="card">
     <h2>Your location</h2>
-    <p>Location is used only for the weather card. When "Use my location" is on, the page asks Chrome for your device location and sends the rounded coordinates to Open-Meteo and BigDataCloud as listed above. Material Desk does not keep a history of your locations. You can turn "Use my location" off in settings and type a city instead, or hide the weather card completely.</p>
+    <p>Location is used only for the weather card. The first time Material Desk opens, the weather card asks how to find your place: "Use my location", "Type a city" or "No weather". Nothing is looked up or sent before you answer. When "Use my location" is on, the page asks Chrome for your device location and sends the rounded coordinates to Open-Meteo and BigDataCloud as listed above. Material Desk does not keep a history of your locations. You can turn "Use my location" off in settings and type a city instead, or hide the weather card completely.</p>
 </section>
 
 <section class="card">
@@ -133,7 +133,7 @@ footer a { margin: 0 8px; }
     <h2>Your choices and deleting your data</h2>
     <ul>
         <li><strong>Stop location use:</strong> settings, turn off "Use my location" and type a city.</li>
-        <li><strong>Stop search suggestions:</strong> settings, turn off search suggestions. Nothing you type is then sent until you run a search.</li>
+        <li><strong>Search suggestions:</strong> off until you turn them on in settings. While they are off, nothing you type is sent until you run a search.</li>
         <li><strong>Hide the weather:</strong> settings, turn off the weather card. No weather or location requests are then made.</li>
         <li><strong>Export your data:</strong> settings, "Export data" saves your settings, to-dos, bookmark view and built-in wallpaper choice to a file on your computer. An uploaded picture is not included.</li>
         <li><strong>Reset settings:</strong> settings, "Reset settings" puts every setting back to its default. It keeps your to-dos and bookmarks.</li>

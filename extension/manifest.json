@@ -2,7 +2,7 @@
  "manifest_version": 3,
  "name": "Material Desk",
  "version": "4.0.0.23",
- "description": "A calm Material You new tab: cookie clock, weather, to-do list and bookmarks, colored from your wallpaper.",
+ "description": "A calm new tab with a clock, weather, to-dos and your bookmarks, all colored to match your wallpaper.",
  "minimum_chrome_version": "116",
  "permissions": [
   "storage",

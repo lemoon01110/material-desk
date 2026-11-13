@@ -22,8 +22,12 @@ store)
     python3 -I - "$dist/manifest.json" <<'PY'
 import json, sys
 p = sys.argv[1]; m = json.load(open(p)); m.pop("update_url", None)
+# The desktop look (an admin policy read through chrome.storage.managed) is for the author's own machine: the store
+# build leaves its schema out, and the page then simply finds no managed look.
+m.pop("storage", None)
 json.dump(m, open(p, "w"), indent=1)
 PY
+    rm -f "$dist/schema.json"
     ver=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$dist/manifest.json")
     zip="$root/dist/material-desk-$ver.zip"; rm -f "$zip"
     (cd "$dist" && zip -qr -X "$zip" .)

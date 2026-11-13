@@ -248,6 +248,25 @@
 .dlb-retry { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px; border-radius: 17px;
     color: var(--dl-on_primary_container, #ffdad3); background: var(--dl-primary_container, #733427); }
 
+/* First run: the weather question, on the same glass pill, with its three answers beside it. */
+.dlb-ask { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 14px; padding: 0 16px; }
+.dlb-ask-q { padding: 8px 22px 8px 8px; border-radius: 32px; }
+.dlb-ask-q > span:last-child { display: flex; flex-direction: column; gap: 1px; }
+.dlb-ask-q b { font: 600 1.05rem/1.3 var(--f-display); }
+.dlb-ask-why { font: 400 0.88rem/1.3 var(--f-body); color: var(--ink-2); }
+.dlb-ask-why a { color: var(--dl-primary, #ffb4a4); text-underline-offset: 2px; }
+.dlb-ask-do, .dlb-ask-city { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0; }
+.dlb-ask-btn { height: 36px; padding: 0 16px; border: 0; border-radius: 18px; cursor: pointer;
+    font: 600 0.9rem/36px var(--f-body); color: var(--dl-on_surface, #f1dfdb);
+    background: color-mix(in srgb, var(--dl-surface_container_high, #322825) 86%, transparent);
+    transition: background-color 0.15s, transform 0.1s; }
+.dlb-ask-btn:hover { background: var(--dl-surface_container_highest, #3d3230); }
+.dlb-ask-btn:active { transform: scale(0.97); }
+.dlb-ask-main, .dlb-ask-main:hover { color: var(--dl-on_primary, #561f14); background: var(--dl-primary, #ffb4a4); }
+.dlb-ask-main:hover { filter: brightness(1.06); }
+.dlb-ask-btn:focus-visible { outline: 2px solid var(--dl-primary, #ffb4a4); outline-offset: 2px; }
+.dlb-ask-city .field { width: 220px; height: 36px; padding: 0 16px; border-radius: 18px; }
+
 /* Height tiers. The band must fit under the clock, the date and the search bar, whose sizes step down at 820 and
    680 container px (base.css): tight below 770, small below 621. One direction only, so the band never grows as the
    window shrinks. */

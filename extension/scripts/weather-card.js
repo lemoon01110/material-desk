@@ -365,6 +365,7 @@
             return;
         }
         card.removeAttribute("aria-busy");
+        if (w === "ask") { ask(focusKey); return; }
         if (!w) {
             const why = !navigator.onLine ? "You’re offline, so the weather can’t load."
                 : failure && failure.name === "TimeoutError" ? "The weather service isn’t answering."
@@ -410,6 +411,41 @@
         else if (focusKey === "more") card.querySelector(".dlb-more").focus({ preventScroll: true });
         else if (focusKey) (card.querySelector(focusKey.startsWith("jump-") ? `.dlb-jump-${focusKey.slice(5)}` : ".dlb-stale") || now)
             .focus({ preventScroll: true });
+    }
+    // First run: ask before any place is looked up. Nothing is sent until one of the buttons is pressed.
+    const PRIVACY = "https://lemoon01110.github.io/material-desk/privacy.html";
+    function ask(focusKey) {
+        card.className = "dlb-quiet";
+        card.innerHTML = quiet(`<div class="dlb-ask" role="group" aria-labelledby="dlb-ask-t">
+            <p class="dlb-msg dlb-ask-q"><span class="dlw-shape dlw-tertiary">${shapeSvg("Sunny")}${window.weatherIconSvg("clear", true)}</span><span>
+                <b id="dlb-ask-t">Show the weather where you are?</b>
+                <span class="dlb-ask-why">Your location goes to Open-Meteo to get the forecast.
+                    <a href="${PRIVACY}" target="_blank" rel="noopener">Privacy</a></span></span></p>
+            <div class="dlb-ask-do">
+                <button type="button" class="dlb-ask-btn dlb-ask-main" data-a="gps">Use my location</button>
+                <button type="button" class="dlb-ask-btn" data-a="city">Type a city</button>
+                <button type="button" class="dlb-ask-btn" data-a="off">No weather</button>
+            </div></div>`);
+        const box = card.querySelector(".dlb-ask-do");
+        box.addEventListener("click", (e) => {
+            const b = e.target.closest("button");
+            if (!b) return;
+            if (b.dataset.a === "gps") Lemon.settings.set({ useGPS: true, weatherAsked: true });
+            else if (b.dataset.a === "off") Lemon.settings.set({ weather: false, weatherAsked: true });
+            else if (b.dataset.a === "city") {
+                box.innerHTML = `<form class="dlb-ask-city"><input class="field" type="text" name="c" placeholder="City or place"
+                    aria-label="City or place" autocomplete="off" spellcheck="false" maxlength="200" required>
+                    <button type="submit" class="dlb-ask-btn dlb-ask-main">Show weather</button></form>`;
+                const f = box.querySelector("form");
+                f.c.focus();
+                f.addEventListener("submit", (ev) => {
+                    ev.preventDefault();
+                    const v = f.c.value.trim();
+                    if (v) Lemon.settings.set({ location: v, useGPS: false, weatherAsked: true });
+                });
+            }
+        });
+        if (focusKey) box.querySelector("button").focus({ preventScroll: true });
     }
     const keyOf = (b) => !b || !b.dataset ? "" : b.classList.contains("dlb-more") ? "more"
         : b.matches(".dlb-stale, .dlb-retry") ? "retry" : b.classList.contains("dlb-jump") ? "jump-" + b.dataset.sec
@@ -643,7 +679,8 @@
             : `${speedNum(w.wind)}<small> ${speedUnit()} ${COMPASS_SHORT[point(w.windDir)]}</small>`, `Gusts ${speed(w.gusts)}`,
             `From the ${COMPASS[point(w.windDir)]}. Gusts are the short, stronger bursts.`));
         out.push(row("dlw-t-uv", "UV index", `${Math.round(w.uv)}<small> ${uvWord(w.uv).toLowerCase()}</small>`,
-            today.uvMax != null ? `Peak ${Math.round(today.uvMax)} today${today.uvMax >= 3 ? ", wear sunscreen" : ""}` : "",
+            today.uvMax == null ? "" : !w.isDay ? `None after dark, peaked at ${Math.round(today.uvMax)} today`
+                : `Peak ${Math.round(today.uvMax)} today${today.uvMax >= 3 ? ", wear sunscreen" : ""}`,
             "Strength of the sun's burning rays. At 3 or more, wear sunscreen."));
         if (vis != null) out.push(row("dlw-t-vis", "Visibility", distance(vis),
             vis >= 10000 ? "Clear view" : vis >= 5000 ? "Light haze" : vis >= 1000 ? "Hazy" : "Fog",
@@ -935,6 +972,7 @@
     async function load(force) {
         // No weather requests (location, forecast) while the Weather card is off.
         if (!Lemon.settings.get().weather) return;
+        if (!Lemon.settings.get().weatherAsked) { if (!card.querySelector(".dlb-ask")) render(card, "ask"); return; }
         let cached = null;
         try { cached = JSON.parse(localStorage.getItem(KEY)); } catch (e) { /* none */ }
         const place = JSON.stringify([Lemon.settings.get().useGPS, Lemon.settings.get().location]);
@@ -1010,7 +1048,9 @@
         Lemon.settings.onChange((s, patch) => {
             if ("weather" in patch && !s.weather) closeDetail();
             if ("weather" in patch && s.weather) load(false);
-            if ("useGPS" in patch || "location" in patch) load(true);
+            // Picking a place in Settings answers the first-run question too.
+            if (("useGPS" in patch || "location" in patch) && !s.weatherAsked) { Lemon.settings.set({ weatherAsked: true }); return; }
+            if ("useGPS" in patch || "location" in patch || "weatherAsked" in patch) load(true);
             else if ("units" in patch && last) redraw();
         });
         // Keep a long-open tab current, and refresh as soon as the network is back.

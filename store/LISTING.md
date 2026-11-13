@@ -15,64 +15,41 @@ Material Desk
 ## Short description (manifest `description`, max 132 characters)
 
 ```
-A calm Material You new tab: cookie clock, weather, to-do list and bookmarks, colored from your wallpaper.
+A calm new tab with a clock, weather, to-dos and your bookmarks, all colored to match your wallpaper.
 ```
 
-(106 characters, the same as `extension/manifest.json`. It makes no "data stays on your device" claim: the weather and
+(101 characters, the same as `extension/manifest.json`. It makes no "data stays on your device" claim: the weather and
 search suggestions send the place and the typed text to outside services, see the Privacy paragraph below.)
 
 ## Detailed description (dashboard field "Description")
 
 ```
-Material Desk turns every new tab into a quiet desk: a clock, a search bar, today's weather, your to-do list and your bookmarks, all in one dark Material You page that takes its colors from a wallpaper you choose.
+Material Desk swaps Chrome's new tab for one quiet page: a clock, search, the weather, your to-dos and your bookmarks. Its colors come from your wallpaper, so the whole thing matches.
 
-What is on the page
+What you get
 
-- Cookie clock: a round Material 3 clock with the date, in the style of the End4 Hyprland desktop.
-- Search bar: a long search bar that searches with the search engine set in Chrome, like the address bar does. Text that looks like a web address opens directly. You can also pick Google, DuckDuckGo, Bing, Brave, Wikipedia or YouTube instead. With Google or DuckDuckGo picked, suggestions show while you type and the arrow keys pick one. Suggestions can be turned off in settings.
-- Weather: current conditions, feels-like temperature, wind, humidity, UV and air quality, with a detail view for the next hours and the next 10 days. The place comes from your location (if you allow it) or a city you type in settings. Fahrenheit or Celsius.
-- To-do column: lists, sections, due dates and times, priorities, tags, subtasks, notes and repeating to-dos (daily, weekdays, weekly, monthly). Search your to-dos and keep a focus item.
-- Bookmarks column: browse, search, add, edit, move and delete your Chrome bookmarks in a grid or a list, with site icons from Chrome.
-- Google apps: quick links to Gmail, Calendar, Drive, Docs, YouTube, Maps, Photos, Classroom, Meet and Translate.
-- Colors: keep the built-in Dusk wallpaper or upload your own picture, and the whole page is colored from it with Material You colors.
-- Layout: fold or widen the side columns, set panel opacity, and hide the parts you do not use.
-- Settings: units, location, search engine, suggestions, seconds on the clock, and export or import of your data as a file.
+• A big round clock with the date
+• Search that uses the engine you already set in Chrome. You can pick a different one in settings.
+• Weather for where you are: now, the next 24 hours and 10 days, with rain, wind, UV and air quality
+• A to-do list with due dates, repeats, subtasks and tags. Type "call mom friday 5pm" and it sets the date for you.
+• Your Chrome bookmarks, to open, search and tidy up without leaving the tab
+• Shortcuts to Gmail, Drive, Calendar and other Google apps
 
-Keyboard shortcuts (when you are not typing in a field)
+Make it yours
 
-- s: search the web
-- e: search engine menu
-- n: new to-do
-- /: search to-dos
-- 1: fold or open the to-do column
-- [ and ]: to-do column smaller or bigger
-- b: search bookmarks
-- a: add a bookmark
-- 2: fold or open the bookmarks column
-- { and }: bookmarks column smaller or bigger
-- g: Google apps
-- w: weather details
-- h: weather hours or days
-- ,: settings
-- ?: show all shortcuts
-- Esc: close what is open
+Keep the built-in Dusk wallpaper or upload your own picture, and the page takes its colors from it. Fold either side column away, make the panels more or less see-through, and hide whatever you don't use.
 
-On a fresh new tab Chrome puts the cursor in the address bar. Click the page or press F6 first, then use the keys.
+Keyboard
+
+Press ? on the page to see every shortcut. The ones you'll use most: s to search, n for a new to-do, b to search bookmarks, w for the weather. Chrome puts the cursor in the address bar when a new tab opens, so click the page first.
 
 Privacy
 
-Material Desk has no account, no analytics and no ads, and the developer receives none of your data. Your settings, to-dos and wallpaper are stored only in your browser on this device. To show the weather, the page sends coordinates or the city you typed to Open-Meteo, and may ask BigDataCloud for the city name of your coordinates or ipinfo.io for an approximate location when no location is set. Searches go to the search engine set in Chrome, or to the engine you pick in settings. When search suggestions are on and Google or DuckDuckGo is the picked engine, the text you type in the search bar is sent to that engine to get suggestions. Full privacy policy: https://lemoon01110.github.io/material-desk/privacy.html
+No account, no ads, no tracking. Your to-dos and settings stay in your browser. The weather asks before it uses your location, then sends it only to the weather service (Open-Meteo) and a place-name lookup. Search suggestions are off until you turn them on. Full policy: https://lemoon01110.github.io/material-desk/privacy.html
 
-Open source
+Free and open source (GPL-3.0): https://github.com/lemoon01110/material-desk
 
-Material Desk is free and open source under the GPL-3.0 license. Source code, issues and feedback: https://github.com/lemoon01110/material-desk
-
-Credits
-
-- Clock and cookie shapes inspired by End4's dots-hyprland (illogical-impulse) desktop.
-- Weather and air quality data by Open-Meteo.com (CC BY 4.0).
-- Reverse geocoding by BigDataCloud. Approximate location by ipinfo.io.
-- Colors follow Google's Material Design 3 (Material You) color system.
+Clock style inspired by end-4's dots-hyprland. Weather data by Open-Meteo.com. Material Desk is not made by or affiliated with Google.
 ```
 
 ## Category

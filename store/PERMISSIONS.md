@@ -39,7 +39,7 @@ Shows each bookmark's site icon next to it, using Chrome's own favicon cache thr
 ### geolocation
 
 ```
-Used only for the weather card: when "Use my location" is on in settings, the page reads the device location once per refresh and sends the coordinates, rounded to 3 decimals, to Open-Meteo to get the local forecast and air quality, and once per new location to BigDataCloud to show the city name. Nothing is requested while the weather card is turned off. The user can turn location off in settings and type a city instead.
+Used only for the weather card. The first time the page opens it asks "Use my location", "Type a city" or "No weather", and nothing is looked up before the user answers. When "Use my location" is on in settings, the page reads the device location once per refresh and sends the coordinates, rounded to 3 decimals, to Open-Meteo to get the local forecast and air quality, and once per new location to BigDataCloud to show the city name. Nothing is requested while the weather card is turned off. The user can turn location off in settings and type a city instead.
 ```
 
 ### search
@@ -54,13 +54,13 @@ search bar started to use `chrome.search.query`, see `scripts/center.js` and SUB
 ### Host permission: https://www.google.com/complete/search*
 
 ```
-Fetches search suggestions from Google while the user types in the new tab's search bar, only when the "Search suggestions" setting is on and the user picked Google as the engine (not with the default "Chrome default" engine). Only the typed text is sent.
+Fetches search suggestions from Google while the user types in the new tab's search bar, only when the user turned on "Suggestions" (off on a new install) and picked Google as the engine (not with the default "Chrome default" engine). Only the typed text is sent.
 ```
 
 ### Host permission: https://duckduckgo.com/ac/*
 
 ```
-Fetches search suggestions from DuckDuckGo while the user types in the search bar, only when "Search suggestions" is on and the user picked DuckDuckGo as the engine. Only the typed text is sent.
+Fetches search suggestions from DuckDuckGo while the user types in the search bar, only when the user turned on "Suggestions" (off on a new install) and picked DuckDuckGo as the engine. Only the typed text is sent.
 ```
 
 ### Host permission: https://api.open-meteo.com/*
@@ -84,7 +84,7 @@ Turns a city name the user typed in settings into coordinates for the weather fo
 ### Host permission: https://api.bigdatacloud.net/*
 
 ```
-Looks up the city name for the device coordinates so the weather card can show where the forecast is for. Only latitude and longitude are sent.
+Looks up the city name for the device coordinates so the weather card can show where the forecast is for. Only latitude and longitude are sent. BigDataCloud may answer from its own api-bdc.io address.
 ```
 
 ### Host permission: https://ipinfo.io/*
@@ -168,8 +168,7 @@ rejection reason.
 - `chrome_url_overrides.newtab`: the new tab override is the item itself, covered by the single purpose.
 - `background.service_worker`: no permission. It listens to tab open and close events only to apply updates, which
   needs no `tabs` permission.
-- `storage.managed_schema`: lets an administrator set colors by policy. No permission, no user data. Remove it if the
-  store build no longer uses it.
+- `storage.managed_schema`: left out of the store build by `tools/build.sh store` (it is only for the author's own desktop).
 - `update_url`: removed automatically by `tools/build.sh store`. The store build must not contain it.
 
 ## Check before submitting

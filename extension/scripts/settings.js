@@ -190,8 +190,8 @@
     // Suggestions come only from Google's or DuckDuckGo's own suggest service, for that engine. With "Chrome default"
     // the page can not tell which engine Chrome uses, so there are none.
     function suggestHint(engine) {
-        if (engine === "google") return "Ideas from Google while you type";
-        if (engine === "duckduckgo") return "Ideas from DuckDuckGo while you type";
+        if (engine === "google") return "Sends what you type to Google to show ideas";
+        if (engine === "duckduckgo") return "Sends what you type to DuckDuckGo to show ideas";
         if (engine === "default") return "Off with Chrome default, since Material Desk can't tell which engine Chrome uses. Pick Google or DuckDuckGo to get them.";
         return "Only with Google or DuckDuckGo";
     }

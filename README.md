@@ -1,21 +1,19 @@
 # Material Desk
 
-A calm Material You new tab page for Chrome. A cookie clock, a long search bar, the weather, a to-do list and your
-bookmarks, all in a dark Material 3 expressive look whose colors come from your wallpaper.
+A calm new tab for Chrome: a clock, search, the weather, a to-do list and your bookmarks on one dark page, colored to
+match your wallpaper (Material You colors).
 
-<!-- Screenshots: add images to docs/ and link them here. -->
 | | |
 |---|---|
 | ![Material Desk with the built-in Dusk wallpaper](docs/screenshot-dusk.png) | ![Settings with the Wallpaper section](docs/screenshot-settings.png) |
 
 ## Features
 
-- **Cookie clock** with the time, a second dot, and day and month bubbles.
+- **Clock**: a round clock with a second dot and the day and month in bubbles.
 - **Search** with the search engine set in Chrome (the default, through `chrome.search`), or with Google,
-  DuckDuckGo, Bing, Brave, Wikipedia or YouTube. Optional suggestions with Google or DuckDuckGo.
+  DuckDuckGo, Bing, Brave, Wikipedia or YouTube. Suggestions from Google or DuckDuckGo if you turn them on.
 - **Weather** from Open-Meteo: now, the next hours and days, and a detail view with a 24-hour chart, 10 days, air
-  quality, UV, wind, sun and moon. Place from your location, a typed place, or your internet
-  address. Units follow your browser's region (Fahrenheit in the United States) and can be changed.
+  quality, UV, wind and moon. It asks the first time whether to use your location, a typed place, or no weather. Units follow your browser's region (Fahrenheit in the United States) and can be changed.
 - **To-do list** with lists, sections, tags, due dates and times, repeats, subtasks, priorities, focus and natural
   date entry ("Friday 5 pm").
 - **Bookmarks** from Chrome, as a grid or a list, with folders, search and the Google apps.

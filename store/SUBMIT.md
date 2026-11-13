@@ -156,20 +156,18 @@ These come from reading the code on 2026-11-12 against the policies cited below.
 2. **Unused permission.** Done: `search` was removed on 2026-11-12 while `chrome.search` was never called, and came
    back the same day with risk 1, now used by `scripts/center.js`. Unused permissions are rejected ("Purple
    Potassium"), so keep it only while the "Chrome default" engine exists.
-3. **Disclosure and consent before data leaves the device.** The Disclosure Requirements policy says an item that
-   handles user data must prominently disclose what it collects and how it is used, and get the user's
-   affirmative consent. The July 2026 policy update extends prominent disclosure to all data collection, enforced
-   from August 1, 2026. Today the weather uses the device location by default (`useGPS: true`, and the manifest
-   `geolocation` permission means Chrome shows no location prompt), falls back to ipinfo.io automatically, and search
-   suggestions are on by default (on a new install they send nothing until the user picks Google or DuckDuckGo, since
-   the default engine "Chrome default" has no suggestions). Recommended: a short first-run card ("Material Desk shows weather for your
-   location using Open-Meteo. Use my location / Type a city / No weather" and "Show search suggestions from Google?
-   Yes / No"), with nothing sent before the user answers. The listing and privacy policy already describe the data.
+3. **Disclosure and consent before data leaves the device.** Done on 2026-11-12. The Disclosure Requirements policy
+   says an item that handles user data must prominently disclose it and get the user's consent (extended to all data
+   collection from August 1, 2026). A new install now shows a question in the weather band before any lookup: "Show
+   the weather where you are? Your location goes to Open-Meteo to get the forecast." with "Use my location", "Type a
+   city" and "No weather" (and a Privacy link). Nothing is sent before an answer (tested on a fresh profile: no
+   requests at all). Search suggestions start off on a new install, and the switch says "Sends what you type to
+   Google (or DuckDuckGo) to show ideas". Installs from before keep what they had.
 4. **Author-only code in the background worker.** Done: the one-time bookmark cleanup is gone from
    `scripts/background.js` and `schema.json`. What is left only applies waiting updates and asks for update checks.
 5. **Names and text.** Done: the manifest, UI text, export file names and messages say Material Desk.
-6. **Managed storage schema.** If the desktop color policy (`storage.managed_schema`) is not part of the public
-   product, drop it from the store build.
+6. **Managed storage schema.** Done: `tools/build.sh store` leaves `storage.managed_schema` and `schema.json` out of
+   the store build. Only the author's self-hosted copy uses the desktop colors policy.
 7. **Permissions in the privacy policy.** Done: `docs/privacy.html` lists the Search permission again (point 1) and
    says how "Chrome default" searches are handled.
 8. **License files in the package.** Done: `tools/build.sh` copies LICENSE (GPL-3.0) and NOTICE into every build.
