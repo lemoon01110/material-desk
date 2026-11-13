@@ -317,11 +317,29 @@
     .dlb-jump, .dlb-stale { height: 24px; font-size: 0.76rem; line-height: 24px; }
     .dlb-note { font-size: 0.8rem; }
 }
-/* A narrow band (the 1366 wide screen): a slimmer Now, so the readings keep their words. (after the height tiers, so it wins) */
-@container dlbm (max-width: 700px) {
+/* A narrow center (both side columns at 1366, 1440 or 1536 wide): a slimmer Now, so the readings keep their words.
+   (after the height tiers, so it wins) The condition and the outlook may take two lines here. These steps measure
+   the center column, which only the window sets: folding or opening a side column keeps its track (base.css), so
+   the card never changes when a column folds or opens. */
+@container dlwc (max-width: 860px) {
     .dlb-now { --nw: 280px; --bs: 60px; column-gap: 10px; padding-inline: 12px 14px; }
-    .dlb-cond { font-size: 0.95rem; }
+    .dlb-temp { font-size: min(var(--tp), 52px); }
+    .dlb-t3 .dlb-temp { font-size: calc(min(var(--tp), 52px) * 0.82); }
+    .dlb-cond { font-size: 0.95rem; white-space: normal; text-wrap: balance; display: -webkit-box; -webkit-line-clamp: 2; }
+    .dlb-feels { font-size: 0.82rem; }
+    .dlb-out, .dlb-tm { font-size: 0.84rem; }
+    .dlb-out { line-height: 1.2; white-space: normal; text-wrap: balance; display: -webkit-box; -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2; overflow-wrap: anywhere; }
     .dlb-rd { padding-inline: 9px; }
+    .dlb-tl { font-size: 0.8rem; gap: 5px; }
+}
+/* Narrower still (both side columns at 1280 wide): two by two, the four most important readings (rain, wind, UV, air
+   or humidity) at full words; the rest are in More details. */
+@container dlwc (max-width: 620px) {
+    .dlb-read { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dlb-rd:nth-child(n+5) { display: none; }
+    .dlb-rd { padding-inline: 12px; }
+    .dlb-tl { font-size: 0.82rem; gap: 6px; }
 }
 @media (prefers-reduced-motion: reduce) {
     .dlb-it:active, .dlb-col:not(.dlb-ghost):hover, .dlb-col:focus-visible, .dlb-more:active { transform: none; }
@@ -513,6 +531,11 @@
     .dlw-aqi .dlw-meter { margin-right: 4px; }
     .dlw-moonpic { width: 26px; height: 26px; top: 8px; right: 10px; }
     .dlw-moon .dlw-tv { font-size: 1rem; padding-right: 28px; white-space: normal; line-height: 1.15; }
+    /* Narrow tiles: values and notes wrap instead of cutting ("30.01 inHg", "Waxing crescent", the air note). */
+    .dlw-tv { white-space: normal; text-overflow: clip; line-height: 1.15; }
+    .dlw-moon .dlw-tv { padding-right: 0; font-size: 0.95rem; }
+    .dlw-moonpic { width: 20px; height: 20px; top: 8px; }
+    .dlw-aqi .dlw-ts { -webkit-line-clamp: 3; }
 }
 /* 1366x768: the compact layout's chart a little shorter, so the 10 days and the tiles fit without scrolling. */
 @container lemon (max-height: 769px) {

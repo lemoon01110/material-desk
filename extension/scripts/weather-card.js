@@ -440,8 +440,10 @@
     const keyOf = (b) => !b || !b.dataset ? "" : b.classList.contains("dlb-more") ? "more"
         : b.matches(".dlb-stale, .dlb-retry") ? "retry" : b.classList.contains("dlb-jump") ? "jump-" + b.dataset.sec
         : `${b.dataset.k}|${b.dataset.m || b.dataset.t || b.dataset.d || b.getAttribute("aria-label")}`;
-    // The items that share one tab stop: the top row (Now and the readings) or the strip.
-    const group = (b) => [...card.querySelectorAll(b.dataset.g === "m" ? ".dlb-main .dlb-it" : ".dlb-track .dlb-it")];
+    // The items that share one tab stop: the top row (Now and the readings) or the strip. Only those drawn: a narrow
+    // band shows fewer readings (weather.css), and a hidden one cannot take the focus.
+    const group = (b) => [...card.querySelectorAll(b.dataset.g === "m" ? ".dlb-main .dlb-it" : ".dlb-track .dlb-it")]
+        .filter((x) => x.getClientRects().length);
 
     // ---- Layout and the edge fade of the strip ----
     // A mask on the whole strip would also cut the focus ring and costs a full repaint, so each item carries the fade
