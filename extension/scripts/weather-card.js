@@ -619,77 +619,58 @@
     }
 
     // Tile titles are words only (owner 2026-11-12: no extra symbols on the tiles).
-    // `why` is a plain-words line on what the reading means (owner 2026-11-12: "I kind of want explanations"). It shows
-    // under the reading in the wide layout and as the tile's tooltip everywhere.
-    const tile = (cls, label, value, sub, extra = "", why = "") => `
-        <div class="dlw-tile ${cls}"${why ? ` title="${esc(why)}"` : ""}><div class="dlw-tl">${label}</div>
-            <div class="dlw-tv">${value}</div>${sub ? `<div class="dlw-ts">${sub}</div>` : ""}${extra}${why ? `<p class="dlw-tx">${esc(why)}</p>` : ""}</div>`;
+    // Right now, as one compact list (owner 2026-11-12: "tighten it down to like a list with values"): each row is the
+    // reading's name, its value and a short note in plain words; the full explanation is the row's tooltip.
     const dewWord = (c) => { const f = c * 9 / 5 + 32; return f < 50 ? "Dry" : f < 60 ? "Comfortable" : f < 65 ? "Sticky" : "Muggy"; };
-    const meter = (frac, label) => `<div class="dlw-meter" aria-hidden="true" title="${esc(label)}"><b style="left:${clamp(frac, 0, 1) * 100}%"></b></div>`;
+    const row = (cls, label, value, note, why) => `<li class="dlw-row ${cls}" title="${esc(why)}">` +
+        `<span class="dlw-rl">${label}</span><span class="dlw-rv">${value}</span><span class="dlw-rn">${note}</span></li>`;
 
-    function tiles(w) {
+    function nowRows(w) {
         const t = todayAt(w), today = w.days[t] || {}, tomorrow = w.days[t + 1];
         const feelsGap = tval(w.feels) - tval(w.temp);
         const vis = w.visibility;
         const m = moon(Date.now());
         const out = [];
-        // Feels like only when it differs (the band shows it then too); cloud cover is gone (the condition says it).
-        // In the narrow layout the header line says feels like instead (dlw-t-feels is hidden there).
-        // Wide grid, three columns, no holes: [feels, humidity, dew] [wind, UV, visibility] [wind, rain, moon] [air].
-        // A missing feels-like widens the dew point, a missing visibility widens the moon.
-        if (Math.abs(feelsGap) >= 1.5) out.push(tile("dlw-t-feels", "Feels like", deg(w.feels),
-            feelsGap < 0 ? `Cooler than the ${deg(w.temp)} air` : `Warmer than the ${deg(w.temp)} air`, "",
-            feelsGap < 0 ? "Wind and damp air pull heat from your skin."
-                : "Humid, still air keeps your body from cooling off."));
-        out.push(tile("dlw-t-humid", "Humidity", `${Math.round(w.humidity)}%`,
-            w.humidity < 30 ? "Dry air" : w.humidity <= 60 ? "Comfortable" : w.humidity <= 80 ? "Humid" : "Very humid", "",
+        if (Math.abs(feelsGap) >= 1.5) out.push(row("dlw-t-feels", "Feels like", deg(w.feels),
+            feelsGap < 0 ? "Colder from wind and damp" : "Warmer from humid, still air",
+            "How the air feels on your skin, counting wind and humidity."));
+        out.push(row("dlw-t-humid", "Humidity", `${Math.round(w.humidity)}%`,
+            w.humidity < 30 ? "Dry air" : w.humidity <= 60 ? "Comfortable" : w.humidity <= 80 ? "Humid" : "Very humid",
             "Water in the air, out of the most it can hold at this temperature."));
-        const noFeels = Math.abs(feelsGap) < 1.5;
-        out.push(tile("dlw-t-dew" + (noFeels ? " dlw-w2" : ""), "Dew point", deg(w.dew), dewWord(w.dew), "",
-            `Air cooled to ${deg(w.dew)} would form dew. Below ${deg(10)} feels dry, above ${deg(16)} sticky.`));
-        // Wind with a compass (the arrow points where the wind goes).
-        const ticks = [...Array(36)].map((_, i) => `<line x1="50" y1="${i % 9 ? 7 : 5}" x2="50" y2="${i % 9 ? 10 : 12}" transform="rotate(${i * 10} 50 50)"/>`).join("");
-        out.push(tile("dlw-wind dlw-t-wind", "Wind", `${speedNum(w.wind)}<small> ${speedUnit()}</small>`,
-            `From <span class="dlw-wide">the ${COMPASS[point(w.windDir)]}</span><span class="dlw-narrow">${COMPASS_SHORT[point(w.windDir)]}</span>, gusts ${speed(w.gusts)}`,
-            `<div class="dlw-compass" aria-hidden="true"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" class="dlw-ring"/>
-                <g class="dlw-ticks">${ticks}</g>
-                <text x="50" y="23">N</text><text x="80" y="54">E</text><text x="50" y="85">S</text><text x="20" y="54">W</text></svg>
-                <span class="dlw-arrow" style="--dir:${(w.windDir + 180) % 360}deg">${I.arrow}</span></div>`,
-            "The arrow points where the wind blows. Gusts are short, stronger bursts."));
-        out.push(tile("dlw-t-uv", "UV index", `${Math.round(w.uv)}<small> ${uvWord(w.uv).toLowerCase()}</small>`,
-            today.uvMax != null ? `Up to ${Math.round(today.uvMax)} today, ${uvWord(today.uvMax).toLowerCase()}` : "",
-            meter(w.uv / 11, "UV scale 0 to 11"), "Strength of the sun's burning rays. At 3 or more, wear sunscreen."));
-        if (vis != null) out.push(tile("dlw-t-vis", "Visibility", distance(vis),
-            vis >= 10000 ? "Clear view" : vis >= 5000 ? "Light haze" : vis >= 1000 ? "Hazy" : "Fog", "",
+        out.push(row("dlw-t-dew", "Dew point", deg(w.dew), `${dewWord(w.dew)}, sticky above ${deg(16)}`,
+            `Dew forms if the air cools to ${deg(w.dew)}. The higher it is, the muggier it feels: below ${deg(10)} feels dry, above ${deg(16)} sticky.`));
+        out.push(row("dlw-t-wind", "Wind", speedNum(w.wind) < 2 ? "Calm"
+            : `${speedNum(w.wind)}<small> ${speedUnit()} ${COMPASS_SHORT[point(w.windDir)]}</small>`, `Gusts ${speed(w.gusts)}`,
+            `From the ${COMPASS[point(w.windDir)]}. Gusts are the short, stronger bursts.`));
+        out.push(row("dlw-t-uv", "UV index", `${Math.round(w.uv)}<small> ${uvWord(w.uv).toLowerCase()}</small>`,
+            today.uvMax != null ? `Peak ${Math.round(today.uvMax)} today${today.uvMax >= 3 ? ", wear sunscreen" : ""}` : "",
+            "Strength of the sun's burning rays. At 3 or more, wear sunscreen."));
+        if (vis != null) out.push(row("dlw-t-vis", "Visibility", distance(vis),
+            vis >= 10000 ? "Clear view" : vis >= 5000 ? "Light haze" : vis >= 1000 ? "Hazy" : "Fog",
             `How far you can see clearly. Under ${distance(1000)} is fog.`));
-        // Rain: today's amount when today is wet, else the next wet day.
+        // Rain: today when today is wet, else the next wet day.
         if ((today.rain || 0) >= 50) {
-            out.push(tile("dlw-t-rain", "Rain today", amount(today.mm || 0),
-                `${Math.round(today.rain)}% chance${tomorrow ? `, ${Math.round(tomorrow.rain)}% tomorrow` : ""}`, "",
+            out.push(row("dlw-t-rain", "Rain today", `${Math.round(today.rain)}%`,
+                `${amount(today.mm || 0)} expected${tomorrow ? `, ${Math.round(tomorrow.rain)}% tomorrow` : ""}`,
                 "Chance of rain today, and how much should fall."));
         } else {
             const j = w.days.findIndex((d, i) => i > t && d.rain >= 50);
             const d = w.days[j];
-            out.push(tile("dlw-t-rain", "Next rain", d ? `${dayName(d.date, 2)}<small> ${d.rain}%</small>` : "None",
-                d ? `${j - t === 1 ? "Tomorrow, " : ""}${amount(d.mm)} expected` : `Dry for ${w.days.length - t} days`, "",
-                "The next day with a 50% or higher chance of rain."));
+            out.push(row("dlw-t-rain", "Next rain", d ? `${dayName(d.date, 2)}<small> ${d.rain}%</small>` : "None",
+                d ? `${j - t === 1 ? "Tomorrow, " : ""}${amount(d.mm)} expected` : `Dry for ${w.days.length - t} days`,
+                "The next day with a 50% or higher chance of rain, and how much should fall."));
         }
-        const toFull = Math.round(((0.5 - m.age + 1) % 1) * 29.53);
-        out.push(tile("dlw-moon" + (vis == null ? " dlw-w2" : ""), "Moon", m.name, `${Math.round(m.lit * 100)}% lit`,
-            `<svg class="dlw-moonpic" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" class="dlw-moon-dark"/><path d="${moonPath(m.age)}" class="dlw-moon-lit"/></svg>`,
-            m.name === "Full moon" ? "The whole face is lit tonight." : `Full moon in ${toFull} day${toFull === 1 ? "" : "s"}.`));
         if (w.air) {
             const a = w.air, n = (v) => v == null ? "?" : Math.round(v);
-            out.push(tile("dlw-aqi dlw-t-air" + (a.aqi > 100 ? " dlw-bad" : ""), "Air quality", `${Math.round(a.aqi)}<small> ${aqiWord(a.aqi).toLowerCase()}</small>`,
-                "US AQI, particles in µg/m³",
-                meter(a.aqi / 300, "AQI scale 0 to 300") + `<dl class="dlw-pm"><div><dt>PM2.5</dt><dd>${n(a.pm25)}</dd></div>
-                    <div><dt>PM10</dt><dd>${n(a.pm10)}</dd></div><div><dt>Ozone</dt><dd>${n(a.ozone)}</dd></div></dl>`,
-                (a.aqi <= 50 ? "Clean air, fine for everyone outside."
-                    : a.aqi <= 100 ? "Fine for most people. Very sensitive people may want to take it easy outside."
-                    : a.aqi <= 150 ? "People with asthma, kids and older adults should cut long outdoor exercise."
-                    : "Unhealthy: everyone should cut long or hard outdoor exercise.")
-                + " PM2.5 and PM10 are fine dust, ozone is smog."));
+            out.push(row("dlw-t-air" + (a.aqi > 100 ? " dlw-bad" : ""), "Air quality",
+                `${Math.round(a.aqi)}<small> ${aqiWord(a.aqi).toLowerCase()}</small>`,
+                a.aqi <= 50 ? "Fine for everyone" : a.aqi <= 100 ? "Fine for most people"
+                    : a.aqi <= 150 ? "Sensitive people take it easy" : "Cut long outdoor exercise",
+                `US air quality index, 0 to 500. PM2.5 ${n(a.pm25)}, PM10 ${n(a.pm10)} (fine dust, µg/m³), ozone ${n(a.ozone)} (smog).`));
         }
+        const toFull = Math.round(((0.5 - m.age + 1) % 1) * 29.53);
+        out.push(row("dlw-moon", "Moon", `${Math.round(m.lit * 100)}%<small> lit</small>`, m.name === "Full moon" ? "Full moon tonight"
+            : `${m.name}, full in ${toFull} day${toFull === 1 ? "" : "s"}`, "How much of the moon is lit tonight, and its phase."));
         return out.join("");
     }
 
@@ -700,7 +681,6 @@
         const keep = body ? body.scrollTop : 0;
         const text = window.weatherText(w.code, w.isDay);
         const stale = ageMin(w) > STALE;
-        const feelsHead = Math.abs(tval(w.feels) - tval(w.temp)) >= 1.5;
         detail.innerHTML = `
             <header class="dlw-d-head">
                 ${badge(w, "dlw-small")}
@@ -708,7 +688,7 @@
                 <div class="dlw-words">
                     <h2 class="dlw-cond" id="dlw-d-title">${esc(text)} in ${esc(w.place)}</h2>
                     <div class="dlw-sub dlw-sum">${esc(daySentence(w))}</div>
-                    <div class="dlw-sub">Today ${deg(todayRange(w).min)} to ${deg(todayRange(w).max)}, ${feelsHead ? `<span class="dlw-narrow">feels like ${deg(w.feels)}, </span>` : ""}<span class="${stale ? "dlw-old" : ""}">updated ${stale ? ago(w) : updatedAt(w)}</span></div>
+                    <div class="dlw-sub">Today ${deg(todayRange(w).min)} to ${deg(todayRange(w).max)}, <span class="${stale ? "dlw-old" : ""}">updated ${stale ? ago(w) : updatedAt(w)}</span></div>
                 </div>
                 <button type="button" class="icon-btn dlw-close" title="Close (Esc)">${I.close}<span class="dlw-sr">Close weather details</span></button>
             </header>
@@ -722,7 +702,10 @@
                     <div class="dlw-d-h"><h3 id="dlw-h-10">10 days</h3></div>
                     <ol class="dlw-ten">${tenDays(w)}</ol>
                 </section>
-                <section class="dlw-d-sec dlw-d-grid" aria-label="Current conditions">${tiles(w)}</section>
+                <section class="dlw-d-sec dlw-d-grid" aria-labelledby="dlw-h-now">
+                    <div class="dlw-d-h"><h3 id="dlw-h-now">Right now</h3></div>
+                    <ul class="dlw-rows">${nowRows(w)}</ul>
+                </section>
                 <p class="dlw-credit">Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a></p>
             </div>`;
         const nb = detail.querySelector(".dlw-d-body");

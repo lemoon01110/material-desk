@@ -369,7 +369,7 @@
 .dlw-old { color: var(--dl-error, #ffb4ab); }
 .dlw-close { align-self: flex-start; flex: none; background: var(--dl-surface_container_highest, #3d3230); }
 .dlw-d-body { flex: 1; min-height: 0; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent;
-    padding: 2px 20px 20px; display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+    padding: 2px 20px 20px; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
     grid-template-areas: "chart chart" "days grid"; gap: 14px; outline: 0;
     /* Tight: every row is as tall as its content, and the 10 days stretch to the tiles' height beside them. */
     align-items: stretch; }
@@ -434,79 +434,39 @@
 .dlw-ten .dlw-wk i { border-radius: 3px; }
 .dlw-ten .dlw-wk b { width: 10px; height: 10px; box-shadow: 0 0 0 2px var(--dl-surface_container_high, #322825); }
 
-/* Metrics grid: three columns; wind is tall (compass), sun and air quality are wide. */
-.dlw-d-grid { grid-area: grid; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-flow: row dense;
-    gap: 10px; padding: 0; background: none; }
-/* No holes in the three columns: a tile whose neighbor is missing (feels like, visibility) takes two cells, air quality
-   takes the whole last row. */
-.dlw-w2 { grid-column: span 2; }
-.dlw-tile { position: relative; display: flex; flex-direction: column; gap: 2px; min-width: 0; min-height: 94px;
-    padding: 12px 14px; border-radius: 20px; background: var(--dl-surface_container_high, #322825); }
-/* The tile picked in the band. */
-.dlw-tile.dlw-on { box-shadow: inset 0 0 0 2px var(--dl-primary, #ffb4a4); }
-.dlw-tl { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--dl-on_surface_variant, #d8c2bd); }
-/* Title, value and note sit together at the top; the explanation goes to the bottom of a tile taller than its words.
-   The wind tile centers its compass in the room between. */
-.dlw-tile > .dlw-tl { padding-bottom: 4px; }
-.dlw-tv { font: 700 1.6rem/1.2 var(--f-display); font-variant-numeric: tabular-nums; white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis; }
-.dlw-ts { font-size: 0.8rem; line-height: 1.3; color: var(--dl-on_surface_variant, #d8c2bd); }
-.dlw-meter { position: relative; height: 6px; margin: 8px 6px 2px 0; border-radius: 3px;
-    background: linear-gradient(90deg, var(--dl-secondary, #e7bdb3), var(--dl-tertiary, #dcc48c), var(--dl-error, #ffb4ab)); }
-.dlw-meter b { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; transform: translate(-50%, -50%);
-    background: var(--dl-on_surface, #f1dfdb); box-shadow: 0 0 0 3px var(--dl-surface_container_high, #322825); }
-.dlw-wind { grid-row: span 2; }
-.dlw-compass { position: relative; width: 116px; height: 116px; margin: auto; }
-.dlw-compass svg { width: 100%; height: 100%; display: block; }
-.dlw-ring { fill: var(--dl-surface_container_highest, #3d3230); stroke: var(--dl-outline_variant, #534340); stroke-width: 1; }
-.dlw-ticks line { stroke: var(--dl-outline, #a08c88); stroke-width: 1.2; stroke-linecap: round; }
-.dlw-compass text { fill: var(--dl-on_surface_variant, #d8c2bd); font: 700 11px var(--f-display); text-anchor: middle; }
-.dlw-compass .dlw-arrow { position: absolute; inset: 0; }
-.dlw-compass .dlw-arrow svg { width: 40px; height: 40px; fill: var(--dl-primary, #ffb4a4); }
-.dlw-aqi { grid-column: 1 / -1; }
-.dlw-aqi .dlw-ts { padding-right: 140px; white-space: normal; }
-.dlw-narrow { display: none; }
-/* What the reading means, in plain words, under it (wide layout; a tooltip in the narrow one). */
-.dlw-tx { margin: auto 0 0; padding-top: 6px; font-size: 0.78rem; line-height: 1.35; text-wrap: pretty;
-    color: color-mix(in srgb, var(--dl-on_surface_variant, #d8c2bd) 78%, transparent); }
-.dlw-aqi .dlw-tx { padding-right: 140px; }
-.dlw-moonpic { position: absolute; right: 14px; top: 14px; width: 40px; height: 40px; }
-.dlw-moon-dark { fill: var(--dl-surface_container_highest, #3d3230); stroke: var(--dl-outline_variant, #534340); }
-.dlw-moon-lit { fill: var(--dl-tertiary, #dcc48c); }
-.dlw-moon .dlw-tv { font-size: 1.15rem; padding-right: 46px; white-space: normal; }
-.dlw-aqi .dlw-meter { margin-right: 140px; }
-.dlw-bad .dlw-tv { color: var(--dl-error, #ffb4ab); }
-.dlw-pm { position: absolute; right: 14px; top: 12px; margin: 0; display: grid; grid-template-columns: auto auto; gap: 2px 10px;
-    font-size: 0.78rem; }
-.dlw-pm div { display: contents; }
-.dlw-pm dt { color: var(--dl-on_surface_variant, #d8c2bd); }
-.dlw-pm dd { margin: 0; font: 600 0.85rem var(--f-display); text-align: right; font-variant-numeric: tabular-nums; }
+/* Right now: one list of readings beside the 10 days (owner 2026-11-12: "a list with values"). Name, value, short note
+   in three aligned columns; the rows share the 10 days' height so the two cards end together. */
+.dlw-d-grid { grid-area: grid; display: flex; flex-direction: column; }
+.dlw-rows { flex: 1; list-style: none; margin: 8px 0 0; padding: 0; display: grid; align-content: stretch;
+    grid-template-columns: max-content max-content minmax(0, 1fr); grid-auto-rows: 1fr; column-gap: 18px; }
+.dlw-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center;
+    padding: 6px; margin: 0 -6px; border-radius: 12px; min-width: 0; }
+.dlw-row + .dlw-row { box-shadow: 0 -1px 0 color-mix(in srgb, var(--line) 60%, transparent); }
+.dlw-row.dlw-on, .dlw-row.dlw-on + .dlw-row { box-shadow: none; }
+.dlw-row.dlw-on { background: var(--dl-tertiary_container, #554519); color: var(--dl-on_tertiary_container, #f9e0a6); }
+.dlw-rl { font-size: 0.88rem; color: var(--dl-on_surface_variant, #d8c2bd); white-space: nowrap; }
+.dlw-rv { font: 700 1.05rem/1.2 var(--f-display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dlw-rv small { font: 500 0.78em var(--f-body); color: var(--dl-on_surface_variant, #d8c2bd); }
+.dlw-rn { min-width: 0; font-size: 0.85rem; color: var(--dl-on_surface_variant, #d8c2bd); white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; }
+.dlw-row.dlw-on .dlw-rl, .dlw-row.dlw-on .dlw-rn, .dlw-row.dlw-on .dlw-rv small { color: inherit; }
+.dlw-bad .dlw-rv { color: var(--dl-error, #ffb4ab); }
 
-/* Short screens (1366x768): a shorter chart, so the tiles start sooner. */
+/* Short screens (1366x768): a shorter chart. */
 @container lemon (max-height: 769px) {
     .dlw-chart { height: 112px; margin-bottom: 22px; }
     .dlw-d-head { padding: 14px 16px 10px 18px; }
 }
-/* Mid-height pages (1920x1080 and the like): a shorter chart and compass, so the tiles with their explanations fit
-   without scrolling. */
+/* Mid-height pages (1920x1080 and the like): a slightly shorter chart and header. */
 @container lemon (max-height: 1150px) {
-    .dlw-chart { height: 110px; margin-bottom: 22px; }
+    .dlw-chart { height: 120px; margin-bottom: 22px; }
     .dlw-d-head { padding: 16px 18px 10px 20px; }
     .dlw-d-body { gap: 10px; }
-    .dlw-compass { width: 92px; height: 92px; }
-    .dlw-compass .dlw-arrow svg { width: 32px; height: 32px; }
-    .dlw-tile { padding: 10px 14px; }
-    .dlw-tv { font-size: 1.55rem; }
 }
-/* Narrow detail (the center column of a 1366 wide screen or a 1100 wide window, up to 940 px): five columns. The chart across the top, the
-   10 days in the first two, the tiles (compact: no compass, sun arc or particle list, their words stay) three to a
-   row beside the days. Rich but fits 1366x768 and 1366x640 with no scroll. */
+/* Narrow detail (the center column of a 1366 wide screen or a 1100 wide window, up to 940 px): the same two cards,
+   smaller type. Fits 1366x768 and 1366x640 with no scroll. */
 @container dlwd (max-width: 940px) {
-    .dlw-d-body { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-areas: none; grid-auto-flow: row dense;
-        grid-auto-rows: max-content; gap: 8px; padding: 0 14px 14px; align-items: stretch; }
-    .dlw-d-chartsec { grid-column: 1 / -1; grid-row: 1; }
-    .dlw-d-days { grid-column: 1 / 3; grid-row: 2 / span 4; }
-    .dlw-d-grid { display: contents; }
+    .dlw-d-body { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 8px; padding: 0 14px 14px; }
     .dlw-d-head { gap: 14px; }
     .dlw-d-head .dlw-temp { font-size: 48px; }
     .dlw-detail .dlw-shape.dlw-small { width: 64px; height: 64px; flex-basis: 64px; }
@@ -514,31 +474,16 @@
     .dlw-legend { font-size: 0.74rem; }
     .dlw-chart { height: 150px; margin: 10px 2px 22px; }
     .dlw-chart:has(.dlw-on) { margin-top: 26px; }
-    .dlw-ten { margin-top: 4px; }
+    .dlw-ten, .dlw-rows { margin-top: 4px; }
     .dlw-ten li { grid-template-columns: 36px 24px 42px 30px minmax(16px, 1fr) 30px; gap: 5px; padding: 2px 6px; }
     .dlw-ten .wi { width: 24px; height: 24px; }
     .dlw-dn { font-size: 0.88rem; }
     .dlw-lo, .dlw-hi { font-size: 0.9rem; }
-    .dlw-tile { min-height: 0; padding: 7px 10px 8px; border-radius: 16px; gap: 1px; }
-    .dlw-tl { font-size: 0.76rem; }
-    .dlw-tv { font-size: 1.15rem; }
-    .dlw-ts { font-size: 0.76rem; line-height: 1.25; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
-        overflow: hidden; }
-    .dlw-wind { grid-row: auto; }
-    .dlw-w2 { grid-column: auto; }
-    .dlw-aqi { grid-column: span 2; }   /* humidity, dew, wind / UV, visibility, rain / moon, air: three full rows */
-    .dlw-compass, .dlw-pm, .dlw-t-feels, .dlw-wide, .dlw-tx { display: none; }
-    .dlw-narrow { display: inline; }
-    .dlw-aqi .dlw-ts { padding-right: 0; }
-    .dlw-meter { margin: 5px 4px 1px 0; height: 5px; }
-    .dlw-aqi .dlw-meter { margin-right: 4px; }
-    .dlw-moonpic { width: 26px; height: 26px; top: 8px; right: 10px; }
-    .dlw-moon .dlw-tv { font-size: 1rem; padding-right: 28px; white-space: normal; line-height: 1.15; }
-    /* Narrow tiles: values and notes wrap instead of cutting ("30.01 inHg", "Waxing crescent", the air note). */
-    .dlw-tv { white-space: normal; text-overflow: clip; line-height: 1.15; }
-    .dlw-moon .dlw-tv { padding-right: 0; font-size: 0.95rem; }
-    .dlw-moonpic { width: 20px; height: 20px; top: 8px; }
-    .dlw-aqi .dlw-ts { -webkit-line-clamp: 3; }
+    .dlw-rows { column-gap: 12px; }
+    .dlw-row { padding: 2px 6px; }
+    .dlw-rl, .dlw-rn { font-size: 0.8rem; }
+    .dlw-rn { white-space: normal; line-height: 1.2; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .dlw-rv { font-size: 0.95rem; }
 }
 /* 1366x768: the compact layout's chart a little shorter, so the 10 days and the tiles fit without scrolling. */
 @container lemon (max-height: 769px) {
@@ -552,10 +497,9 @@
     .dlw-detail .dlw-shape.dlw-small { width: 54px; height: 54px; flex-basis: 54px; }
     .dlw-d-head .dlw-cond { font-size: 1.15rem; -webkit-line-clamp: 1; }
 }
-/* Very narrow (small windows): the days across, the tiles two to a row under them. */
+/* Very narrow (small windows): the days, then the readings, each across. */
 @container dlwd (max-width: 560px) {
-    .dlw-d-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .dlw-d-days { grid-column: 1 / -1; grid-row: auto; }
+    .dlw-d-body { grid-template-columns: minmax(0, 1fr); grid-template-areas: "chart" "days" "grid"; }
 }
 
 /* Open-Meteo attribution (CC BY 4.0), the last line of the detail view. */
