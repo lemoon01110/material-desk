@@ -167,7 +167,7 @@
     // ---- look ----------------------------------------------------------------------------------------------------
     // The built-in wallpapers (wallpapers/<id>.svg, drawn by tools/wallpapers.py) and the first-run default, whose
     // scheme is worked out ahead of time (tonal spot, dark, from the picture) so the very first tab paints in it.
-    const BUILTINS = [["dusk", "Dusk"], ["dune", "Dune"], ["tide", "Tide"], ["fern", "Fern"], ["aurora", "Aurora"], ["bloom", "Bloom"]];
+    const BUILTINS = [["dusk", "Dusk"]];   // only Dusk is kept (2026-11-12); a saved Dune, Tide, ... falls back to it
     const DEFAULT_COLORS = {
         primary: "#d6bbfb", on_primary: "#3b255b", primary_container: "#523c73", on_primary_container: "#eddcff",
         secondary: "#cec2db", on_secondary: "#352d40", secondary_container: "#4c4357",

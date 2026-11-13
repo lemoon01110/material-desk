@@ -34,7 +34,7 @@ What is on the page
 - To-do column: lists, sections, due dates and times, priorities, tags, subtasks, notes and repeating to-dos (daily, weekdays, weekly, monthly). Search your to-dos and keep a focus item.
 - Bookmarks column: browse, search, add, edit, move and delete your Chrome bookmarks in a grid or a list, with site icons from Chrome.
 - Google apps: quick links to Gmail, Calendar, Drive, Docs, YouTube, Maps, Photos, Classroom, Meet and Translate.
-- Colors: pick one of the built-in wallpapers or upload your own picture, and the whole page is colored from it with Material You colors.
+- Colors: keep the built-in Dusk wallpaper or upload your own picture, and the whole page is colored from it with Material You colors.
 - Layout: fold or widen the side columns, set panel opacity, and hide the parts you do not use.
 - Settings: units, location, search engine, suggestions, seconds on the clock, and export or import of your data as a file.
 

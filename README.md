@@ -19,7 +19,7 @@ bookmarks, all in a dark Material 3 expressive look whose colors come from your 
 - **To-do list** with lists, sections, tags, due dates and times, repeats, subtasks, priorities, focus and natural
   date entry ("Friday 5 pm").
 - **Bookmarks** from Chrome, as a grid or a list, with folders, search and the Google apps.
-- **Wallpapers and colors:** six built-in wallpapers or your own picture, a Dim slider, and a Material You dark
+- **Wallpapers and colors:** the built-in Dusk wallpaper or your own picture, a Dim slider, and a Material You dark
   color scheme made from the picture on your device.
 - Side columns fold to an icon or widen to half or the whole page. Keyboard shortcuts (press `?`).
 
