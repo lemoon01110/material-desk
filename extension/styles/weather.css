@@ -445,25 +445,27 @@
 .dlw-legend { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--dl-on_surface_variant, #d8c2bd); }
 .dlw-legend i { display: inline-block; margin-left: 8px; }
 .dlw-lg-line { width: 14px; height: 3px; border-radius: 2px; background: var(--dl-primary, #ffb4a4); }
-.dlw-lg-bar { width: 8px; height: 11px; border-radius: 2px; background: color-mix(in srgb, var(--dl-secondary, #e7bdb3) 60%, transparent); }
+.dlw-lg-bar { width: 7px; height: 12px; border-radius: 999px; background: color-mix(in srgb, var(--dl-secondary, #e7bdb3) 60%, transparent); }
 .dlw-lg-night { width: 11px; height: 11px; border-radius: 3px; background: color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 9%, transparent); }
 
 /* 24-hour chart: SVG stretched to the box, labels in HTML so the text never stretches. */
 .dlw-chart { position: relative; height: 150px; margin: 12px 4px 24px; }
 .dlw-chart svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .dlw-night { fill: var(--dl-on_surface, #f1dfdb); fill-opacity: 0.05; }
-.dlw-pbars { position: absolute; inset: 0; pointer-events: none; --pbw: 8px; }
+.dlw-chart { --pbw: 14px; }   /* rain bar width (the bars and their % labels) */
+.dlw-pbars { position: absolute; inset: 0; pointer-events: none; }
 .dlw-pbar { position: absolute; bottom: 0; width: var(--pbw); translate: -50% 0; border-radius: 999px;   /* semicircle ends */
     background: color-mix(in srgb, var(--dl-secondary, #e7bdb3) 60%, transparent); }
 .dlw-line { fill: none; stroke: var(--dl-primary, #ffb4a4); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
 .dlw-cl-t, .dlw-cl-x, .dlw-cl-p, .dlw-cl-now { position: absolute; pointer-events: none; white-space: nowrap; }
 .dlw-cl-t { transform: translate(-50%, calc(-100% - 7px)); font: 700 0.85rem var(--f-display); }
 .dlw-cl-x { top: 100%; transform: translate(-50%, 6px); font-size: 0.75rem; color: var(--dl-on_surface_variant, #d8c2bd); }
-.dlw-cl-p { transform: translate(-50%, calc(-100% - 2px)); font: 600 0.68rem var(--f-display); color: var(--dl-secondary, #e7bdb3); }
+.dlw-cl-p { transform: translate(-50%, -3px);   /* sits on its bar: bottom is the bar height (weather-card.js) */
+    font: 600 0.68rem var(--f-display); color: var(--dl-secondary, #e7bdb3); }
 .dlw-cl-now { width: 11px; height: 11px; border-radius: 50%; transform: translate(-50%, -50%);
     background: var(--dl-primary, #ffb4a4); box-shadow: 0 0 0 3px var(--dl-surface_container_high, #322825); }
 .dlw-hits { position: absolute; inset: 0; }
-.dlw-hits i { position: absolute; top: 0; bottom: 0; border-radius: 6px; }
+.dlw-hits i { position: absolute; top: 0; bottom: 0; border-radius: 999px; }   /* semicircle ends, like the rain bars */
 .dlw-hits i:hover { background: color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 7%, transparent); }
 .dlw-hits i span { display: none; }
 .dlw-chart:has(.dlw-on) { margin-top: 30px; }

@@ -644,13 +644,13 @@
         // The rain bars are HTML, not SVG: the SVG is stretched to the chart's shape, which would squash round ends
         // into ovals. As boxes with a full border radius their ends are true semicircles: narrow rounded lines, never
         // shorter than they are wide, so a small chance still shows as a dot rather than a squashed oval (owner 2026-11-13).
-        const bars = hs.map((h, i) => h.rain > 0 ? `<i class="dlw-pbar" style="left:${x(i).toFixed(2)}%;height:max(${(h.rain * 0.26).toFixed(2)}%, var(--pbw))"></i>` : "").join("");
+        const bars = hs.map((h, i) => h.rain > 0 ? `<i class="dlw-pbar" style="left:${x(i).toFixed(2)}%;height:max(${(h.rain * 0.26).toFixed(2)}%, var(--pbw));opacity:${(0.45 + 0.55 * Math.min(1, h.rain / 40)).toFixed(2)}"></i>` : "").join("");
         // Every third hour gets labels; a rain label that would touch the temperature line is left out (the hour's
         // tooltip and the header still say it).
         const labels = hs.map((h, i) => i % 3 ? "" : `
             <span class="dlw-cl-t" style="left:${x(i)}%;top:${y(temps[i])}%">${Math.round(temps[i])}°</span>
             <span class="dlw-cl-x" style="left:${x(i)}%">${i === 0 ? "Now" : hourLabel(h.time)}</span>
-            ${h.rain >= 10 && 100 - h.rain * 0.26 - y(temps[i]) >= 18 ? `<span class="dlw-cl-p" style="left:${x(i)}%;top:${100 - h.rain * 0.26}%">${h.rain}%</span>` : ""}`).join("");
+            ${h.rain >= 10 && 100 - h.rain * 0.26 - y(temps[i]) >= 18 ? `<span class="dlw-cl-p" style="left:${x(i)}%;bottom:max(${h.rain * 0.26}%, var(--pbw))">${h.rain}%</span>` : ""}`).join("");
         // One column per hour: a tooltip, and the hour picked in the band gets a tint and its own label.
         const hits = hs.map((h, i) => `<i data-t="${esc(h.time)}" style="left:${i / n * 100}%;width:${100 / n}%" title="${esc(`${hourLabel(h.time)}, ${deg(h.temp)}, ${window.weatherText(h.code, h.isDay)}, rain ${h.rain}%${h.mm ? ", " + amount(h.mm) : ""}`)}"><span>${hourLabel(h.time)} ${Math.round(temps[i])}°</span></i>`).join("");
         const hiAt = temps.indexOf(hi), loAt = temps.indexOf(lo), wet = Math.max(...hs.map((h) => h.rain));
