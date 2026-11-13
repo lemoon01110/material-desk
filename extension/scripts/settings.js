@@ -59,6 +59,22 @@
                     aria-checked="false" tabindex="-1">${icon("check", "st-tick")}${ic ? icon(ic, "st-seg-ico") : ""}<span>${text}</span></button>`).join("")}
             </div>
         </div>`;
+    // A slider bound to a number setting (data-range), its value shown by fmt.
+    const RANGES = {
+        magSize: { min: 0, max: 60, step: 1, fmt: (v) => v + "%" },
+        magSpread: { min: 50, max: 300, step: 5, fmt: (v) => (v / 100).toFixed(2).replace(/0$/, "").replace(/\.0$/, "") + " items" },
+        magLift: { min: 0, max: 24, step: 1, fmt: (v) => v + " px" },
+    };
+    const rng = (key, label, lo, hi) => `
+        <div class="st-row st-row-stack" data-for="${key}">
+            <div class="st-row-line">
+                <span class="st-label" id="st-l-${key}">${label}</span>
+                <output class="st-val" for="st-${key}"></output>
+            </div>
+            <input id="st-${key}" class="st-slider" type="range" data-range="${key}" min="${RANGES[key].min}"
+                max="${RANGES[key].max}" step="${RANGES[key].step}" aria-labelledby="st-l-${key}">
+            <div class="st-scale" aria-hidden="true"><span>${lo}</span><span>${hi}</span></div>
+        </div>`;
     const group = (title, ic, rows, tone) => `
         <section class="st-group" aria-labelledby="st-g-${ic}">
             <h3 class="st-group-title" id="st-g-${ic}"><span class="st-group-ico${tone ? " st-" + tone : ""}">${icon(ic)}</span>${title}</h3>
@@ -105,6 +121,10 @@
                             <span class="st-saved" aria-live="polite"></span>
                         </div>
                     </div>`,
+                    sw("magnify", "Magnify on hover", "The hours and days grow under the mouse, like a dock"),
+                    rng("magSize", "Magnify size", "None", "Big"),
+                    rng("magSpread", "Magnify spread", "Narrow", "Wide"),
+                    rng("magLift", "Magnify lift", "Flat", "High"),
                 ])}
                 ${group("Columns", "columns", [
                     sw("todo", "To-do column", "The list on the left"),
@@ -166,7 +186,7 @@
     const launcher = $(".st-launcher");
     const loc = $("#st-location");
     const slider = $("#st-opacity");
-    const sliderOut = $(".st-val");
+    const sliderOut = $('output[for="st-opacity"]');
     const confirmBox = $(".st-confirm");
     const note = $(".st-note");
     const fileInput = $(".st-file");
@@ -186,6 +206,8 @@
         });
         if (document.activeElement !== loc) loc.value = s.location || "";
         if (document.activeElement !== slider) setSlider(s.panelOpacity);
+        host.querySelectorAll("[data-range]").forEach((el) => { if (document.activeElement !== el) paintRange(el, s[el.dataset.range]); });
+        ["magSize", "magSpread", "magLift"].forEach((k) => host.querySelector(`[data-for="${k}"]`).classList.toggle("st-dim", !s.magnify || !s.weather));
         host.querySelectorAll("[data-needs-weather]").forEach((r) => r.classList.toggle("st-dim", !s.weather));
         $("#st-d-suggestions").textContent = suggestHint(s.engine);
     }
@@ -309,6 +331,23 @@
     });
     slider.addEventListener("change", () => { clearTimeout(sliderTimer); set({ panelOpacity: +slider.value }); });
 
+    // The magnify sliders: shown and saved as they move (the strip reads the settings on each pointer move).
+    const paintRange = (el, v) => {
+        const r = RANGES[el.dataset.range];
+        el.value = v;
+        el.style.setProperty("--p", ((v - r.min) / (r.max - r.min) * 100) + "%");
+        host.querySelector(`output[for="${el.id}"]`).textContent = r.fmt(+v);
+    };
+    host.querySelectorAll("[data-range]").forEach((el) => {
+        let timer = 0;
+        el.addEventListener("input", () => {
+            paintRange(el, el.value);
+            clearTimeout(timer);
+            timer = setTimeout(() => set({ [el.dataset.range]: +el.value }), 120);
+        });
+        el.addEventListener("change", () => { clearTimeout(timer); set({ [el.dataset.range]: +el.value }); });
+    });
+
     // ---- data -------------------------------------------------------------------------------------------------------
     async function readAll() {
         if (local) return await local.get(null);
@@ -382,6 +421,7 @@
         if (out.engine !== undefined && !ENGINE_IDS.includes(out.engine)) delete out.engine;
         if (out.bookmarksView !== undefined && !["grid", "list"].includes(out.bookmarksView)) delete out.bookmarksView;
         if (out.panelOpacity !== undefined) out.panelOpacity = Math.max(60, Math.min(100, Math.round(out.panelOpacity)));
+        for (const k of Object.keys(RANGES)) if (out[k] !== undefined) out[k] = Math.max(RANGES[k].min, Math.min(RANGES[k].max, Math.round(out[k])));
         if (out.location !== undefined) out.location = out.location.trim().slice(0, 200);
         return { ...d, ...out };
     }

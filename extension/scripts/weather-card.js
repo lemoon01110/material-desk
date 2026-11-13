@@ -947,7 +947,8 @@
         // room. Each item at distance d from the pointer is scaled by 1 + A·g(d) with g(d) = exp(-(d/S)²), lifted
         // by L·g(d), and shifted by the integral of that growth, A·S·(√π/2)·erf(d/S), so nothing overlaps and items
         // far away keep their spacing. Mouse only, not while dragging, off with reduced motion.
-        const MAG = { A: 0.26, L: 9, on: false, x: 0, raf: 0 };
+        // Size, spread and lift come from Settings (magSize, magSpread, magLift; the switch is magnify).
+        const MAG = { A: 0.26, L: 9, F: 1.15, on: false, x: 0, raf: 0 };
         const erf = (x) => {   // Abramowitz and Stegun 7.1.26, good to 1e-7
             const s = Math.sign(x), a = Math.abs(x), t = 1 / (1 + 0.3275911 * a);
             return s * (1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-a * a));
@@ -958,7 +959,9 @@
             if (!t || !st.items.length) return;
             const r = t.getBoundingClientRect(), k = r.width / (st.W || r.width) || 1;   // screen px per page px (zoom)
             const px = (MAG.x - r.left) / k + t.scrollLeft;                              // the pointer in strip px
-            const S = (st.items[0].w + 6) * 1.15, push = MAG.A * S * Math.sqrt(Math.PI) / 2;
+            const cfg = Lemon.settings.get();
+            MAG.A = (cfg.magSize ?? 26) / 100; MAG.L = cfg.magLift ?? 9; MAG.F = (cfg.magSpread ?? 115) / 100;
+            const S = (st.items[0].w + 6) * MAG.F, push = MAG.A * S * Math.sqrt(Math.PI) / 2;
             const place = (el, mid, scaled) => {
                 if (!MAG.on) { el.style.transform = ""; return; }
                 const d = (mid - px) / S, g = Math.exp(-d * d);
@@ -969,9 +972,20 @@
             for (const sp of st.seps) place(sp.el, sp.l, false);
         }
         const queueMag = () => { if (!MAG.raf) MAG.raf = requestAnimationFrame(magnify); };
+        // Room above and below the strip for the biggest magnified item, so the settings never get it cut off: it
+        // grows from 75% of its height (transform-origin in weather.css), 3 parts up and 1 down, plus the lift.
+        function magRoom() {
+            const c = Lemon.settings.get(), on = c.magnify !== false;
+            const h = parseFloat(getComputedStyle(card).getPropertyValue("--sh")) || 104, a = on ? (c.magSize ?? 26) / 100 : 0;
+            card.style.setProperty("--mag-up", Math.ceil(a * h * 0.75 + (on ? c.magLift ?? 9 : 0) + 6) + "px");
+            card.style.setProperty("--mag-down", Math.ceil(a * h * 0.25 + 6) + "px");
+        }
+        magRoom();
+        Lemon.settings.onChange((s, patch) => { if ("magnify" in patch || "magSize" in patch || "magLift" in patch) { magRoom(); layout(true); } });
+        new ResizeObserver(magRoom).observe(card);
         card.addEventListener("pointermove", (e) => {
             if (e.pointerType !== "mouse" || reduced()) return;
-            const over = !drag && !!e.target.closest(".dlb-track");
+            const over = !drag && Lemon.settings.get().magnify !== false && !!e.target.closest(".dlb-track");
             if (!over && !MAG.on) return;
             MAG.on = over; MAG.x = e.clientX;
             card.classList.toggle("dlb-mag", over);

@@ -43,6 +43,10 @@
         apps: true,            // Google apps row in the right column
         bookmarksView: "grid", // "grid" | "list"
         panelOpacity: 88,      // side panels and cards, percent
+        magnify: true,         // dock magnification over the weather strip (weather-card.js)
+        magSize: 26,           //   how much the item under the mouse grows, percent
+        magSpread: 115,        //   how far the bell curve reaches, percent of one item's width
+        magLift: 9,            //   how far the item under the mouse rises, px
         todoCollapsed: false,      // to-do column folded to a slim rail (collapse.js)
         bookmarksCollapsed: false, // right column folded to a slim rail
         todoSize: "normal",        // "normal" (320px) | "wide" (half the page); folding is todoCollapsed (collapse.js)
