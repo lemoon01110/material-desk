@@ -11,7 +11,7 @@ before submitting" at the end).
 ## 1. Single purpose description
 
 ```
-Material Desk replaces Chrome's new tab page with a personal start page that brings together a clock, a web search bar, local weather, a to-do list and the user's bookmarks, styled with Material You colors from a wallpaper the user picks.
+Material Desk replaces Chrome's new tab page with a personal start page that brings together a clock, a web search bar, local weather, a to-do list and the user's bookmarks, colored from a wallpaper the user picks.
 ```
 
 ---

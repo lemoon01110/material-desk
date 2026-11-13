@@ -419,7 +419,7 @@
         card.innerHTML = quiet(`<div class="dlb-ask" role="group" aria-labelledby="dlb-ask-t">
             <p class="dlb-msg dlb-ask-q"><span class="dlw-shape dlw-tertiary">${shapeSvg("Sunny")}${window.weatherIconSvg("clear", true)}</span><span>
                 <b id="dlb-ask-t">Show the weather where you are?</b>
-                <span class="dlb-ask-why">Your location goes to Open-Meteo to get the forecast.
+                <span class="dlb-ask-why">Your location goes to Open-Meteo for the forecast, and to BigDataCloud or ipinfo.io for the place name.
                     <a href="${PRIVACY}" target="_blank" rel="noopener">Privacy</a></span></span></p>
             <div class="dlb-ask-do">
                 <button type="button" class="dlb-ask-btn dlb-ask-main" data-a="gps">Use my location</button>
@@ -1048,8 +1048,12 @@
         Lemon.settings.onChange((s, patch) => {
             if ("weather" in patch && !s.weather) closeDetail();
             if ("weather" in patch && s.weather) load(false);
-            // Picking a place in Settings answers the first-run question too.
-            if (("useGPS" in patch || "location" in patch) && !s.weatherAsked) { Lemon.settings.set({ weatherAsked: true }); return; }
+            // Choosing a place in Settings (location on, or a typed city) answers the first-run question too. Turning
+            // location off does not, and neither do Reset or Import, which bring the question back themselves.
+            if (!s.weatherAsked && !("weatherAsked" in patch) && (patch.useGPS === true || (patch.location || "").trim())) {
+                // A typed city means that city, not the device location.
+                Lemon.settings.set(patch.useGPS === true ? { weatherAsked: true } : { weatherAsked: true, useGPS: false }); return;
+            }
             if ("useGPS" in patch || "location" in patch || "weatherAsked" in patch) load(true);
             else if ("units" in patch && last) redraw();
         });

@@ -45,7 +45,7 @@ Press ? on the page to see every shortcut. The ones you'll use most: s to search
 
 Privacy
 
-No account, no ads, no tracking. Your to-dos and settings stay in your browser. The weather asks before it uses your location, then sends it only to the weather service (Open-Meteo) and a place-name lookup. Search suggestions are off until you turn them on. Full policy: https://lemoon01110.github.io/material-desk/privacy.html
+No account, no ads, no tracking. Your to-dos and settings stay in your browser. The weather asks before it uses your location. It then goes to Open-Meteo for the forecast, and to BigDataCloud or ipinfo.io for the place name (ipinfo.io also guesses your city from your internet address if your location can't be read). Search suggestions are off until you turn them on. Full policy: https://lemoon01110.github.io/material-desk/privacy.html
 
 Free and open source (GPL-3.0): https://github.com/lemoon01110/material-desk
 
