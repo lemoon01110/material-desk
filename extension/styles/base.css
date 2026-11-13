@@ -200,8 +200,10 @@ input, textarea { caret-color: var(--dl-primary, #ffb4a4); }
 
 /* Due badge on the folded to-do icon (collapse.js). */
 .fold-rail { position: relative; }
-.fold-badge { position: absolute; top: -4px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px;
+.fold-badge { position: absolute; top: -4px; right: -6px; min-width: 20px; height: 20px; padding: 1px 5px 0;
     border-radius: var(--r-pill); display: grid; place-items: center; font: 700 0.72rem/1 var(--f-display);
+    text-box: trim-both cap alphabetic;   /* centers the digits themselves, not the font's taller line box; the 1px top padding
+                                             makes up the half pixel Space Grotesk's digits still sit high */
     background: var(--dl-tertiary, #dcc48c); color: var(--dl-on_tertiary, #3c2f04);
     box-shadow: 0 0 0 2px var(--dl-surface, #1a110f); pointer-events: none; }
 .fold-badge[hidden] { display: none; }

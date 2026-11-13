@@ -10,7 +10,8 @@
  */
 (function () {
     const ICONS = {
-        todo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5 4.5 4l2 2 4-4L12 3.5l-5.5 5.5zM14 5h7v2h-7zm-11 8.5L4.5 12l2 2 4-4 1.5 1.5-5.5 5.5zM14 13h7v2h-7z"/></svg>',
+        // The checklist is drawn from y 2 to 17, so its box starts 2.5 higher to center it (owner 2026-11-12: "a bit up").
+        todo: '<svg viewBox="0 -2.5 24 24" aria-hidden="true"><path d="M3 5.5 4.5 4l2 2 4-4L12 3.5l-5.5 5.5zM14 5h7v2h-7zm-11 8.5L4.5 12l2 2 4-4 1.5 1.5-5.5 5.5zM14 13h7v2h-7z"/></svg>',
         bookmarks: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1"/></svg>',
     };
     const GRIP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h2v16H8zm6 0h2v16h-2z"/></svg>';

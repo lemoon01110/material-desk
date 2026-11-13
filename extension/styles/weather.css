@@ -338,8 +338,13 @@
 /* While it is open the center sits above the side drawers (narrow windows, wide columns), so its close button is
    never under them. */
 .dlw-open #center { z-index: 7; }
+/* The panel is as tall as its content (centered in the column), so the clock, search and band are hidden while it is
+   open instead of peeking out above and below it. */
+.dlw-open #clock-host, .dlw-open #dlDate, .dlw-open #search-host, .dlw-open #dlWeather { visibility: hidden; }
 .dlw-detail {
-    position: absolute; inset: 0; z-index: 4; margin: 0 auto; width: min(100%, 1100px);
+    /* Hugs its content (owner 2026-11-12: "Still so much empty space. Tighten it."), centered top to bottom, and scrolls
+       inside only when the content is taller than the column. */
+    position: absolute; inset: 0; z-index: 4; margin: auto; width: min(100%, 1100px); height: fit-content; max-height: 100%;
     display: flex; flex-direction: column; border-radius: var(--r-xl); overflow: hidden;
     /* Fully opaque: at 98% the band's bright text still showed through under the 10 days (owner screenshot 2026-11-12). */
     background: var(--dl-surface_container, #271d1b);
@@ -364,18 +369,15 @@
 .dlw-old { color: var(--dl-error, #ffb4ab); }
 .dlw-close { align-self: flex-start; flex: none; background: var(--dl-surface_container_highest, #3d3230); }
 .dlw-d-body { flex: 1; min-height: 0; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent;
-    padding: 2px 20px 20px; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    padding: 2px 20px 20px; display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
     grid-template-areas: "chart chart" "days grid"; gap: 14px; outline: 0;
-    /* Tight (owner 2026-11-12: "it isnt tight and nice"): the 10 days and the tiles share one height, and the 24-hour
-       chart (a third) and they (two thirds) share whatever height is left, so the panel has no empty strip below the days and no blank space at the
-       bottom. */
-    grid-template-rows: minmax(max-content, 1fr) minmax(max-content, 2fr) auto; align-items: stretch; }
+    /* Tight: every row is as tall as its content, and the 10 days stretch to the tiles' height beside them. */
+    align-items: stretch; }
 .dlw-d-body.dlw-more { mask-image: linear-gradient(#000 calc(100% - 28px), transparent); }
 .dlw-d-body:focus-visible { box-shadow: inset 0 0 0 2px var(--dl-primary, #ffb4a4); border-radius: var(--r-lg); }
 .dlw-d-sec { border-radius: var(--r-lg); padding: 14px 18px 16px;
     background: var(--dl-surface_container_high, #322825); min-width: 0; }
-.dlw-d-chartsec { grid-area: chart; display: flex; flex-direction: column; }
-.dlw-d-chartsec .dlw-chart { flex: 1 0 auto; }   /* its set height is the least, it grows into spare room */
+.dlw-d-chartsec { grid-area: chart; }
 .dlw-d-days { grid-area: days; display: flex; flex-direction: column; }
 .dlw-d-days .dlw-ten { flex: 1; display: flex; flex-direction: column; }
 .dlw-d-days .dlw-ten li { flex: 1; }
@@ -434,7 +436,7 @@
 
 /* Metrics grid: three columns; wind is tall (compass), sun and air quality are wide. */
 .dlw-d-grid { grid-area: grid; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-flow: row dense;
-    grid-auto-rows: 1fr; gap: 10px; padding: 0; background: none; }
+    gap: 10px; padding: 0; background: none; }
 /* No holes in the three columns: a tile whose neighbor is missing (feels like, visibility) takes two cells, air quality
    takes the whole last row. */
 .dlw-w2 { grid-column: span 2; }
@@ -443,11 +445,10 @@
 /* The tile picked in the band. */
 .dlw-tile.dlw-on { box-shadow: inset 0 0 0 2px var(--dl-primary, #ffb4a4); }
 .dlw-tl { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--dl-on_surface_variant, #d8c2bd); }
-/* Title at the top, value and note at the bottom, so a tile taller than its words has no empty strip under them. The
-   wind tile keeps its words up top and centers the compass in the room below. */
-.dlw-tile > .dlw-tl { margin-bottom: auto; padding-bottom: 6px; }
-.dlw-wind > .dlw-tl { margin-bottom: 0; }
-.dlw-tv { font: 700 1.75rem/1.2 var(--f-display); font-variant-numeric: tabular-nums; white-space: nowrap;
+/* Title, value and note sit together at the top; the explanation goes to the bottom of a tile taller than its words.
+   The wind tile centers its compass in the room between. */
+.dlw-tile > .dlw-tl { padding-bottom: 4px; }
+.dlw-tv { font: 700 1.6rem/1.2 var(--f-display); font-variant-numeric: tabular-nums; white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis; }
 .dlw-ts { font-size: 0.8rem; line-height: 1.3; color: var(--dl-on_surface_variant, #d8c2bd); }
 .dlw-meter { position: relative; height: 6px; margin: 8px 6px 2px 0; border-radius: 3px;
@@ -466,7 +467,7 @@
 .dlw-aqi .dlw-ts { padding-right: 140px; white-space: normal; }
 .dlw-narrow { display: none; }
 /* What the reading means, in plain words, under it (wide layout; a tooltip in the narrow one). */
-.dlw-tx { margin: 6px 0 0; font-size: 0.78rem; line-height: 1.35; text-wrap: pretty;
+.dlw-tx { margin: auto 0 0; padding-top: 6px; font-size: 0.78rem; line-height: 1.35; text-wrap: pretty;
     color: color-mix(in srgb, var(--dl-on_surface_variant, #d8c2bd) 78%, transparent); }
 .dlw-aqi .dlw-tx { padding-right: 140px; }
 .dlw-moonpic { position: absolute; right: 14px; top: 14px; width: 40px; height: 40px; }
@@ -489,7 +490,7 @@
 /* Mid-height pages (1920x1080 and the like): a shorter chart and compass, so the tiles with their explanations fit
    without scrolling. */
 @container lemon (max-height: 1150px) {
-    .dlw-chart { height: 90px; margin-bottom: 22px; }
+    .dlw-chart { height: 110px; margin-bottom: 22px; }
     .dlw-d-head { padding: 16px 18px 10px 20px; }
     .dlw-d-body { gap: 10px; }
     .dlw-compass { width: 92px; height: 92px; }
@@ -501,7 +502,7 @@
    10 days in the first two, the tiles (compact: no compass, sun arc or particle list, their words stay) three to a
    row beside the days. Rich but fits 1366x768 and 1366x640 with no scroll. */
 @container dlwd (max-width: 940px) {
-    .dlw-d-body { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-areas: none; grid-template-rows: minmax(max-content, 1fr); grid-auto-flow: row dense;
+    .dlw-d-body { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-areas: none; grid-auto-flow: row dense;
         grid-auto-rows: max-content; gap: 8px; padding: 0 14px 14px; align-items: stretch; }
     .dlw-d-chartsec { grid-column: 1 / -1; grid-row: 1; }
     .dlw-d-days { grid-column: 1 / 3; grid-row: 2 / span 4; }
