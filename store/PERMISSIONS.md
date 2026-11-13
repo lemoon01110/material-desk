@@ -2,7 +2,7 @@
 
 Copy each answer into the matching field of the Privacy practices tab in the Developer Dashboard.
 
-Written from `extension/manifest.json` as it was on 2026-11-12 (version 4.0.0.23, permissions storage, bookmarks, favicon and geolocation). The dashboard shows one justification box for each permission in the uploaded
+Written from `extension/manifest.json` as it was on 2026-11-12 (version 4.0.0.23, permissions storage, bookmarks, favicon, geolocation and search). The dashboard shows one justification box for each permission in the uploaded
 ZIP. If the final manifest adds or drops a permission, add or drop its answer here before you submit (see "Check
 before submitting" at the end).
 
@@ -21,7 +21,7 @@ Material Desk replaces Chrome's new tab page with a personal start page that bri
 ### storage
 
 ```
-Saves the user's settings (units, typed location, search engine, layout, panel opacity), to-do lists, the bookmark view and the chosen wallpaper in chrome.storage.local on the user's device so they persist across new tabs. The weather cache is kept in the page's local storage and an uploaded wallpaper picture in IndexedDB, also only on the device. Nothing in storage is sent to the developer.
+Saves the user's settings (units, typed location, chosen search engine, layout, panel opacity), to-do lists, the bookmark view and the chosen wallpaper in chrome.storage.local on the user's device so they persist across new tabs. The weather cache is kept in the page's local storage and an uploaded wallpaper picture in IndexedDB, also only on the device. Nothing in storage is sent to the developer.
 ```
 
 ### bookmarks
@@ -42,24 +42,25 @@ Shows each bookmark's site icon next to it, using Chrome's own favicon cache thr
 Used only for the weather card: when "Use my location" is on in settings, the page reads the device location once per refresh and sends the coordinates, rounded to 3 decimals, to Open-Meteo to get the local forecast and air quality, and once per new location to BigDataCloud to show the city name. Nothing is requested while the weather card is turned off. The user can turn location off in settings and type a city instead.
 ```
 
-The `search` permission was removed from the manifest on 2026-11-12 because `chrome.search` is never called (the
-search bar builds engine URLs itself). If the search bar is changed to use `chrome.search.query` (see SUBMIT.md
-"Known review risks"), add `search` back to the manifest and paste this answer for it:
+### search
 
 ```
-Lets the search bar send the user's query to Chrome's default search engine through the chrome.search API, so web searches from the new tab respect the user's search settings.
+The new tab's search bar runs web searches with the search engine set in the user's Chrome settings: it passes the typed text to chrome.search.query, in the current tab or, on a Ctrl, Cmd or middle click, a new tab. This "Chrome default" choice is the default search engine of the search bar, so searches from the new tab respect the user's search settings. The extension does not see the results and sends the query nowhere itself.
 ```
+
+(History: `search` was dropped on 2026-11-12 while `chrome.search` was not called, and added back the same day when the
+search bar started to use `chrome.search.query`, see `scripts/center.js` and SUBMIT.md risk 1.)
 
 ### Host permission: https://www.google.com/complete/search*
 
 ```
-Fetches search suggestions from Google while the user types in the new tab's search bar, only when the "Search suggestions" setting is on and Google is the chosen engine. Only the typed text is sent.
+Fetches search suggestions from Google while the user types in the new tab's search bar, only when the "Search suggestions" setting is on and the user picked Google as the engine (not with the default "Chrome default" engine). Only the typed text is sent.
 ```
 
 ### Host permission: https://duckduckgo.com/ac/*
 
 ```
-Fetches search suggestions from DuckDuckGo while the user types in the search bar, only when "Search suggestions" is on and DuckDuckGo is the chosen engine. Only the typed text is sent.
+Fetches search suggestions from DuckDuckGo while the user types in the search bar, only when "Search suggestions" is on and the user picked DuckDuckGo as the engine. Only the typed text is sent.
 ```
 
 ### Host permission: https://api.open-meteo.com/*
@@ -132,7 +133,7 @@ Google's User Data FAQ says data that is only processed or stored locally still 
 | Personal communications | No | |
 | **Location** | **Yes** | Device coordinates (geolocation) and an IP-based approximate location are used for the weather card and sent to Open-Meteo, BigDataCloud and ipinfo.io. The typed city name is also stored locally. |
 | **Web history** | **Yes** | The extension reads and edits the user's bookmarks (page titles and addresses). They stay on the device, but ticking this is the safe choice because bookmarks are lists of web pages. |
-| **User activity** | **Yes** | Text typed into the search bar is sent to Google or DuckDuckGo for suggestions when that setting is on. |
+| **User activity** | **Yes** | Text typed into the search bar is sent to Google or DuckDuckGo for suggestions when that setting is on and that engine is picked. Searches with "Chrome default" are handed to Chrome, which sends them to the user's own search engine. |
 | Website content | No | The extension reads no page content. To-dos and the uploaded wallpaper are the user's own content kept on the device and none of the categories describes them. The privacy policy covers them. |
 
 If you want to be even more careful, also tick "Website content" for the user-written to-dos. It does no harm to

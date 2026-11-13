@@ -16,8 +16,7 @@ Files this checklist uses:
 ## Part A. Before you open the dashboard
 
 1. **Fix the known review risks** (section "Known review risks" at the end). Ask Claude to do them in `extension/`.
-   The one that matters most: the search bar going through Chrome's search API (the unused `search` permission is
-   already gone).
+   The one that mattered most, the search bar going through Chrome's search API, is done (risk 1).
 2. **Check the manifest text.** In the final `extension/manifest.json` the `name` must be `Material Desk` and the
    `description` must be the short description from LISTING.md. These two can not be edited in the dashboard later
    without uploading a new version.
@@ -145,20 +144,25 @@ tab after installing.")
 These come from reading the code on 2026-11-12 against the policies cited below. They are for whoever edits
 `extension/`.
 
-1. **Search on the new tab page must respect Chrome's search settings.** The Program Policies list as a single
-   purpose violation: "New Tab Page extensions that alter or provide a general web search experience without using
-   official Chrome search APIs or respecting the user's active search settings." Right now the search bar builds
-   Google, DuckDuckGo, Bing, Brave, Wikipedia and YouTube URLs itself (`scripts/center.js`). Safest fix: make the
-   search bar run queries with `chrome.search.query` (the user's default engine), at least as the default choice.
-   Doing so needs the `search` permission back in the manifest, with its answer from PERMISSIONS.md.
-2. **Unused permission.** Done: `search` was removed from the manifest on 2026-11-12, since `chrome.search` was never
-   called. Unused permissions are rejected ("Purple Potassium").
+1. **Search on the new tab page must respect Chrome's search settings.** Done on 2026-11-12. The Program Policies
+   list as a single purpose violation: "New Tab Page extensions that alter or provide a general web search experience
+   without using official Chrome search APIs or respecting the user's active search settings." The search bar now has
+   a "Chrome default" engine that runs the query with `chrome.search.query` (current tab, or a new tab on Ctrl, Cmd or
+   middle click), so Chrome's own default search engine answers. It is the default engine for new installs.
+   Installs from before keep the engine they had (Google if they never changed it). Google, DuckDuckGo, Bing, Brave,
+   Wikipedia and YouTube stay as choices the user makes in the engine menu or Settings. Typed web addresses still
+   open directly. "Chrome default" gets no suggestions, since the page can not tell which engine Chrome uses. The
+   `search` permission is back in the manifest, with its answer in PERMISSIONS.md.
+2. **Unused permission.** Done: `search` was removed on 2026-11-12 while `chrome.search` was never called, and came
+   back the same day with risk 1, now used by `scripts/center.js`. Unused permissions are rejected ("Purple
+   Potassium"), so keep it only while the "Chrome default" engine exists.
 3. **Disclosure and consent before data leaves the device.** The Disclosure Requirements policy says an item that
    handles user data must prominently disclose what it collects and how it is used, and get the user's
    affirmative consent. The July 2026 policy update extends prominent disclosure to all data collection, enforced
    from August 1, 2026. Today the weather uses the device location by default (`useGPS: true`, and the manifest
    `geolocation` permission means Chrome shows no location prompt), falls back to ipinfo.io automatically, and search
-   suggestions are on by default. Recommended: a short first-run card ("Material Desk shows weather for your
+   suggestions are on by default (on a new install they send nothing until the user picks Google or DuckDuckGo, since
+   the default engine "Chrome default" has no suggestions). Recommended: a short first-run card ("Material Desk shows weather for your
    location using Open-Meteo. Use my location / Type a city / No weather" and "Show search suggestions from Google?
    Yes / No"), with nothing sent before the user answers. The listing and privacy policy already describe the data.
 4. **Author-only code in the background worker.** Done: the one-time bookmark cleanup is gone from
@@ -166,8 +170,8 @@ These come from reading the code on 2026-11-12 against the policies cited below.
 5. **Names and text.** Done: the manifest, UI text, export file names and messages say Material Desk.
 6. **Managed storage schema.** If the desktop color policy (`storage.managed_schema`) is not part of the public
    product, drop it from the store build.
-7. **Permissions in the privacy policy.** Done: the Search line is gone from `docs/privacy.html` with the permission.
-   Add it back if point 1 brings the permission back.
+7. **Permissions in the privacy policy.** Done: `docs/privacy.html` lists the Search permission again (point 1) and
+   says how "Chrome default" searches are handled.
 8. **License files in the package.** Done: `tools/build.sh` copies LICENSE (GPL-3.0) and NOTICE into every build.
 9. **Minimum Chrome version.** The manifest asks for Chrome 116 or newer (`minimum_chrome_version`), the first
    version with `chrome.runtime.getContexts`, which the background worker uses.

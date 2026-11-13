@@ -29,7 +29,7 @@ Material Desk turns every new tab into a quiet desk: a clock, a search bar, toda
 What is on the page
 
 - Cookie clock: a round Material 3 clock with the date, in the style of the End4 Hyprland desktop.
-- Search bar: a long search bar with suggestions while you type and arrow keys to pick one. Text that looks like a web address opens directly. Choose Google, DuckDuckGo, Bing, Brave, Wikipedia or YouTube. Suggestions can be turned off in settings.
+- Search bar: a long search bar that searches with the search engine set in Chrome, like the address bar does. Text that looks like a web address opens directly. You can also pick Google, DuckDuckGo, Bing, Brave, Wikipedia or YouTube instead. With Google or DuckDuckGo picked, suggestions show while you type and the arrow keys pick one. Suggestions can be turned off in settings.
 - Weather: current conditions, feels-like temperature, wind, humidity, UV and air quality, with a detail view for the next hours and the next 10 days. The place comes from your location (if you allow it) or a city you type in settings. Fahrenheit or Celsius.
 - To-do column: lists, sections, due dates and times, priorities, tags, subtasks, notes and repeating to-dos (daily, weekdays, weekly, monthly). Search your to-dos and keep a focus item.
 - Bookmarks column: browse, search, add, edit, move and delete your Chrome bookmarks in a grid or a list, with site icons from Chrome.
@@ -61,7 +61,7 @@ On a fresh new tab Chrome puts the cursor in the address bar. Click the page or 
 
 Privacy
 
-Material Desk has no account, no analytics and no ads, and the developer receives none of your data. Your settings, to-dos and wallpaper are stored only in your browser on this device. To show the weather, the page sends coordinates or the city you typed to Open-Meteo, and may ask BigDataCloud for the city name of your coordinates or ipinfo.io for an approximate location when no location is set. When search suggestions are on, the text you type in the search bar is sent to Google or DuckDuckGo to get suggestions. Full privacy policy: https://lemoon01110.github.io/material-desk/privacy.html
+Material Desk has no account, no analytics and no ads, and the developer receives none of your data. Your settings, to-dos and wallpaper are stored only in your browser on this device. To show the weather, the page sends coordinates or the city you typed to Open-Meteo, and may ask BigDataCloud for the city name of your coordinates or ipinfo.io for an approximate location when no location is set. Searches go to the search engine set in Chrome, or to the engine you pick in settings. When search suggestions are on and Google or DuckDuckGo is the picked engine, the text you type in the search bar is sent to that engine to get suggestions. Full privacy policy: https://lemoon01110.github.io/material-desk/privacy.html
 
 Open source
 

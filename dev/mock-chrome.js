@@ -69,6 +69,15 @@
   chrome.runtime = { id: "devlemon", getURL: (p) => p, lastError: undefined, getContexts: () => Promise.resolve([]),
     getManifest: () => ({ version: "dev" }) };
   chrome.permissions = { contains: (_, cb) => cbOrPromise(true, cb), request: (_, cb) => cbOrPromise(true, cb) };
-  chrome.search = { query: (o) => { location.href = "https://www.google.com/search?q=" + encodeURIComponent(o.text); } };
+  // chrome.search.query stands in for "the user's default search engine": it logs the call (also kept in
+  // window.__searchLog for tests) and goes to a fake results address, so it is plain which path a search took.
+  window.__searchLog = [];
+  chrome.search = { query: (o) => {
+    window.__searchLog.push(o);
+    console.log("[mock] chrome.search.query", JSON.stringify(o));
+    const url = "https://default-search.example/results?q=" + encodeURIComponent(o.text);
+    if (o.disposition === "NEW_TAB" || o.disposition === "NEW_WINDOW") window.open(url); else location.href = url;
+    return Promise.resolve();
+  } };
   chrome.tabs = { create: (o) => window.open(o.url), update: (o) => { location.href = o.url; }, onRemoved: ev() };
 })();

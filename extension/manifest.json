@@ -8,7 +8,8 @@
   "storage",
   "bookmarks",
   "favicon",
-  "geolocation"
+  "geolocation",
+  "search"
  ],
  "host_permissions": [
   "https://www.google.com/complete/search*",

@@ -1,11 +1,15 @@
 /*
  * Center column: the long search bar (#search-host) and the date pill style hook (#dlDate is filled by
- * cookie-clock.js). Search: pick the engine from the button on the left (setting `engine`), suggestions while typing
- * (setting `suggestions`; only with Google or DuckDuckGo, from that engine's own suggest service), arrow keys to pick
- * one, Enter to go. Text that looks like an address opens it directly.
+ * cookie-clock.js). Search: pick the engine from the button on the left (setting `engine`). "Chrome default" (the
+ * default for new installs) hands the query to chrome.search.query, so the search engine set in Chrome's own settings
+ * runs it. The others open that site's results page. Suggestions while typing (setting `suggestions`) only with Google
+ * or DuckDuckGo, from that engine's own suggest service; arrow keys to pick one, Enter to go. Ctrl, Cmd or middle
+ * click on a suggestion or the search button opens a new tab. Text that looks like an address opens it directly.
  */
 (function () {
     const ENGINES = {
+        // No URL: chrome.search.query runs the query with the user's default search engine.
+        default: { name: "Chrome default", mark: "", hint: "The search engine set in Chrome", label: "the web" },
         google: { name: "Google", mark: "G", url: "https://www.google.com/search?q=" },
         duckduckgo: { name: "DuckDuckGo", mark: "D", url: "https://duckduckgo.com/?q=" },
         bing: { name: "Bing", mark: "B", url: "https://www.bing.com/search?q=" },
@@ -28,15 +32,54 @@
         (/^(?:[a-z0-9-]+\.)+[a-z]{2,}(:\d+)?(\/\S*)?$/i.test(t) && (/[/:]/.test(t) || !FILE_EXT.test(t))));
     // Script-carrying schemes never open from the search bar: "javascript://..." is searched as text.
     const safeUrl = (u) => { try { return !/^(javascript|data|vbscript|blob|filesystem):$/i.test(new URL(u).protocol); } catch (e) { return false; } };
-    const COLS = 3;   // engine menu columns (styles/center.css)
+    // The engine's mark on its cookie: a letter, or a small search glyph for "Chrome default".
+    const GLYPH = '<svg class="sb-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 3a6.5 6.5 0 0 1 5.16 10.45l5.45 5.44-1.42 1.42-5.44-5.45A6.5 6.5 0 1 1 9.5 3m0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9"/></svg>';
+    const markOf = (e) => e.mark || GLYPH;
+    // Up/down in the engine menu: rows are worked out from where the items are drawn (the first row is one wide item,
+    // then rows of three), so this keeps working if the grid changes in styles/center.css. Wraps around.
+    function rowStep(all, i, dir) {
+        const rows = [];
+        for (const [j, li] of all.entries()) {
+            const top = Math.round(li.offsetTop);
+            let row = rows.find((r) => Math.abs(r.top - top) < 4);
+            if (!row) rows.push(row = { top, items: [] });
+            row.items.push(j);
+        }
+        rows.sort((a, b) => a.top - b.top);
+        const at = rows.findIndex((r) => r.items.includes(i));
+        const target = rows[(at + dir + rows.length) % rows.length];
+        // The item whose left edge is nearest: from the wide first row down to the first engine, up and down a column.
+        const x = all[i].offsetLeft, d = (j) => Math.abs(all[j].offsetLeft - x);
+        return target.items.reduce((best, j) => (d(j) < d(best) ? j : best));
+    }
     const engine = () => ENGINES[Lemon.settings.get().engine] || ENGINES.google;
+    const chromeSearch = () => window.chrome && chrome.search && typeof chrome.search.query === "function";
+
+    // The query with Chrome's default search engine (the search permission). Returns false only when the API is
+    // missing (a build without the permission), and go() then uses Google so the search still happens. A query Chrome
+    // turns down is not sent to another engine behind the user's back.
+    function chromeQuery(text, newTab) {
+        if (!chromeSearch()) return false;
+        try {
+            const p = chrome.search.query({ text, disposition: newTab ? "NEW_TAB" : "CURRENT_TAB" });
+            if (p && typeof p.catch === "function") p.catch((e) => console.warn("chrome.search.query", e));
+        } catch (e) { console.warn("chrome.search.query", e); }
+        return true;
+    }
 
     function go(text, newTab) {
         const t = text.trim();
         if (!t) return;
-        let url = looksLikeUrl(t) ? (hasScheme(t) ? t : (/^(localhost|\d{1,3}(\.\d{1,3}){3})(:|\/|$)/i.test(t) ? "http://" : "https://") + t)
-            : engine().url + encodeURIComponent(t);
-        if (!safeUrl(url)) url = engine().url + encodeURIComponent(t);
+        const e = engine();
+        let url = looksLikeUrl(t) ? (hasScheme(t) ? t : (/^(localhost|\d{1,3}(\.\d{1,3}){3})(:|\/|$)/i.test(t) ? "http://" : "https://") + t) : null;
+        if (url && !safeUrl(url)) url = null;
+        if (!url) {
+            if (!e.url && chromeQuery(t, newTab)) return;
+            url = (e.url || ENGINES.google.url) + encodeURIComponent(t);
+        }
+        openUrl(url, newTab);
+    }
+    function openUrl(url, newTab) {
         const tabs = window.chrome && chrome.tabs;
         if (newTab && tabs) tabs.create({ url });
         // chrome://, file:// and the like are blocked from a page's location; the tabs API may open them.
@@ -45,7 +88,8 @@
     }
 
     // Only Google and DuckDuckGo give suggestions, each for its own engine: what is typed for Bing, Brave, Wikipedia or
-    // YouTube is never sent to another company.
+    // YouTube is never sent to another company. "Chrome default" has none either: the page can not learn which engine
+    // Chrome uses, so it can not ask that engine's suggest service.
     const suggestsFor = (s) => s.suggestions && (s.engine === "google" || s.engine === "duckduckgo" || !ENGINES[s.engine]);
     async function suggest(q) {
         if (!suggestsFor(Lemon.settings.get()) || q.length < 1 || looksLikeUrl(q)) return [];
@@ -79,10 +123,10 @@
 
         function paintEngine() {
             const e = engine();
-            engBtn.querySelector("b").textContent = e.mark;
+            engBtn.querySelector("b").innerHTML = markOf(e);
             engBtn.title = e.name + " (change engine)";
             engBtn.setAttribute("aria-label", `Search engine: ${e.name}`);
-            input.placeholder = `Search ${e.name} or type a web address`;
+            input.placeholder = `Search ${e.label || e.name} or type a web address`;
         }
         function showEngines(open) { engMenu.hidden = !open; engBtn.setAttribute("aria-expanded", open); }
         function closeAll() { list.hidden = true; showEngines(false); active = -1; }
@@ -126,6 +170,11 @@
             }
         });
         form.addEventListener("submit", (e) => { e.preventDefault(); go(input.value); });
+        // Ctrl, Cmd or middle click on the search button: the results in a new tab.
+        const goBtn = host.querySelector(".sb-go");
+        goBtn.addEventListener("click", (e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); go(input.value, true); } });
+        goBtn.addEventListener("mousedown", (e) => { if (e.button === 1) e.preventDefault(); }); // no autoscroll
+        goBtn.addEventListener("auxclick", (e) => { if (e.button === 1) { e.preventDefault(); go(input.value, true); } });
         list.addEventListener("mousedown", (e) => {
             const li = e.target.closest("li");
             if (!li || e.button === 2) return;
@@ -135,8 +184,10 @@
         input.addEventListener("blur", () => setTimeout(() => { list.hidden = true; }, 120));
         input.addEventListener("focus", () => { if (items.length && input.value && suggestsFor(Lemon.settings.get())) list.hidden = false; });
 
+        // "Chrome default" fills the first row (with a line saying what it is), the six sites sit under it, 3 by 2.
         engMenu.innerHTML = Object.entries(ENGINES).map(([k, e]) =>
-            `<li role="option" data-k="${k}" tabindex="-1"><i>${COOKIE}<b>${e.mark}</b></i><span>${e.name}</span></li>`).join("");
+            `<li role="option" data-k="${k}" tabindex="-1"${e.url ? "" : ' class="sb-wide"'}><i>${COOKIE}<b>${markOf(e)}</b></i>` +
+            (e.hint ? `<span><span>${e.name}</span><small>${e.hint}</small></span>` : `<span>${e.name}</span>`) + `</li>`).join("");
         function markEngine() {
             const k = Lemon.settings.get().engine;
             engMenu.querySelectorAll("li").forEach((li) => li.setAttribute("aria-selected", li.dataset.k === k));
@@ -156,11 +207,14 @@
         });
         engMenu.addEventListener("keydown", (e) => {
             const all = [...engMenu.querySelectorAll("li")], i = all.indexOf(document.activeElement);
-            // Three columns: left/right step one engine, up/down one row; both wrap around.
-            const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: COLS, ArrowUp: -COLS }[e.key];
+            // Left/right step one engine, up/down one row (to the nearest engine in that row); both wrap around.
+            const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
             if (step) {
                 e.preventDefault();
                 all[(i + step + all.length) % all.length].focus();
+            } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                all[rowStep(all, Math.max(i, 0), e.key === "ArrowDown" ? 1 : -1)].focus();
             } else if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault(); document.activeElement.click();
             } else if (e.key === "Escape") { showEngines(false); engBtn.focus(); }

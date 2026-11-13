@@ -38,10 +38,17 @@
     box-shadow: 0 8px 28px rgb(0 0 0 / 0.4), inset 0 0 0 1px var(--line);
 }
 .sb-menu[hidden] { display: none; }
-/* Engines as a 3 by 2 grid under the whole bar: short, so it fits on short screens too. */
+/* Engines under the whole bar: "Chrome default" across the first row, the six sites as a 3 by 2 grid under it.
+   Short, so it fits on short screens too. */
 #sb-engines { right: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; }
 #sb-engines[hidden] { display: none; }
-#sb-engines li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#sb-engines li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#sb-engines li.sb-wide { grid-column: 1 / -1; }
+#sb-engines li.sb-wide > span { display: flex; align-items: baseline; gap: 10px; }
+#sb-engines li.sb-wide small { overflow: hidden; text-overflow: ellipsis; font-size: 0.82rem; color: var(--text-2); }
+/* The small search glyph that stands for "Chrome default" on the cookie. */
+.sb-glyph { display: block; width: 20px; height: 20px; fill: currentColor; }
+#sb-engines li i .sb-glyph { width: 16px; height: 16px; }
 /* Suggestions never run past the page's bottom edge: they scroll instead. */
 .sb-suggest { right: 0; max-height: min(330px, 38cqh); overflow-y: auto; scrollbar-width: thin;
     scrollbar-color: var(--line) transparent; }

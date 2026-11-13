@@ -30,7 +30,8 @@
         units: localUnits(),   // "F" | "C"
         useGPS: true,          // weather place from GPS, else `location`
         location: "",          // typed place; empty means "where the internet address says"
-        engine: "google",      // google | duckduckgo | bing | brave | wikipedia | youtube
+        engine: "default",     // default (Chrome's own engine, chrome.search) | google | duckduckgo | bing | brave |
+                               //   wikipedia | youtube. Installs from before "default" existed keep "google" (below).
         suggestions: true,     // search suggestions while typing
         showSeconds: true,     // the clock's second dot
         weather: true,         // weather card in the center
@@ -73,6 +74,9 @@
         }
         await local.set({ myntImported: true });
     }
+    // Was the page run before this load? Every earlier version set "myntImported" on its first load, so it tells an
+    // existing install from a new one. Asked before importMynt() can set the flag for this load.
+    const ranBefore = local ? local.get("myntImported").then((r) => !!r.myntImported, () => false) : Promise.resolve(false);
     const imported = importMynt().catch((e) => console.warn("MYNT to-do import", e));
 
     const store = {
@@ -136,7 +140,16 @@
             tell(patch);
         });
     }
-    const ready = store.get("settings", {}).then((saved) => {
+    const ready = Promise.all([store.get("settings", {}), ranBefore]).then(async ([saved, before]) => {
+        // "Chrome default" became the default engine later. An install from before that never saved an engine (it never
+        // changed a setting) keeps searching with Google, as it always did. A new install gets "default". Either way
+        // the engine is saved now, so the next load does not take this new install for an old one.
+        if (!saved || typeof saved !== "object" || saved.engine === undefined) {
+            saved = { ...(saved && typeof saved === "object" ? saved : {}), engine: before ? "google" : DEFAULTS.engine };
+            const sent = JSON.stringify(saved);
+            mine.add(sent);   // this tab's own write, not another tab's change
+            try { await store.set("settings", saved); } catch (e) { mine.delete(sent); console.warn("settings", e); }
+        }
         current = { ...DEFAULTS, ...saved };
         try { localStorage.setItem("lemon:settingsCache", JSON.stringify(current)); } catch (e) { /* */ }
         applySettings();

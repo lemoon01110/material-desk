@@ -36,7 +36,7 @@
     const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
     const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ESC[c]);
 
-    const ENGINES = [["google", "Google"], ["duckduckgo", "DuckDuckGo"], ["bing", "Bing"], ["brave", "Brave"],
+    const ENGINES = [["default", "Chrome default"], ["google", "Google"], ["duckduckgo", "DuckDuckGo"], ["bing", "Bing"], ["brave", "Brave"],
         ["wikipedia", "Wikipedia"], ["youtube", "YouTube"]];
 
     // ---- markup helpers ---------------------------------------------------------------------------------------------
@@ -150,8 +150,9 @@
                             Place names by BigDataCloud and ipinfo.io when needed.</p>
                         <p class="st-desc">Clock design after End4's dots-hyprland (GPL-3.0). Colors made with Google's
                             material-color-utilities (Apache-2.0). Fonts: Space Grotesk and Google Sans Flex (SIL Open Font License).</p>
-                        <p class="st-desc">Your saved data stays in this browser. Search suggestions, when on, send what you type to a
-                            suggestion service (Google or DuckDuckGo). Free software under the GPL-3.0.</p>
+                        <p class="st-desc">Your saved data stays in this browser. With Chrome default, searches go to the search
+                            engine set in Chrome. Search suggestions, when on, send what you type to a suggestion service
+                            (Google or DuckDuckGo, only when that is the chosen engine). Free software under the GPL-3.0.</p>
                     </div>`,
                 ])}
             </div>
@@ -184,6 +185,15 @@
         if (document.activeElement !== loc) loc.value = s.location || "";
         if (document.activeElement !== slider) setSlider(s.panelOpacity);
         host.querySelectorAll("[data-needs-weather]").forEach((r) => r.classList.toggle("st-dim", !s.weather));
+        $("#st-d-suggestions").textContent = suggestHint(s.engine);
+    }
+    // Suggestions come only from Google's or DuckDuckGo's own suggest service, for that engine. With "Chrome default"
+    // the page can not tell which engine Chrome uses, so there are none.
+    function suggestHint(engine) {
+        if (engine === "google") return "Ideas from Google while you type";
+        if (engine === "duckduckgo") return "Ideas from DuckDuckGo while you type";
+        if (engine === "default") return "Off with Chrome default, since Material Desk can't tell which engine Chrome uses. Pick Google or DuckDuckGo to get them.";
+        return "Only with Google or DuckDuckGo";
     }
     function setSlider(v) {
         v = Math.max(60, Math.min(100, Math.round(+v || 88)));

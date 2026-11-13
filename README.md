@@ -11,7 +11,8 @@ bookmarks, all in a dark Material 3 expressive look whose colors come from your 
 ## Features
 
 - **Cookie clock** with the time, a second dot, and day and month bubbles.
-- **Search** with Google, DuckDuckGo, Bing, Brave, Wikipedia or YouTube, with optional suggestions.
+- **Search** with the search engine set in Chrome (the default, through `chrome.search`), or with Google,
+  DuckDuckGo, Bing, Brave, Wikipedia or YouTube. Optional suggestions with Google or DuckDuckGo.
 - **Weather** from Open-Meteo: now, the next hours and days, and a detail view with a 24-hour chart, 10 days, air
   quality, UV, wind, sun and moon. Place from your location, a typed place, or your internet
   address. Units follow your browser's region (Fahrenheit in the United States) and can be changed.
@@ -51,7 +52,9 @@ Without it, the Wallpaper section in Settings is in charge.
 - The weather is fetched from Open-Meteo (forecast, place search, air quality) with the coordinates of the place.
   When "Use my location" is on, Chrome's location is used; otherwise the typed place, or your approximate place from
   your internet address (ipinfo.io). Place names for coordinates come from BigDataCloud.
-- Search suggestions, when on, send what you type to Google's or DuckDuckGo's suggestion service.
+- Searches with "Chrome default" are handed to Chrome, which uses the search engine from its own settings.
+- Search suggestions, when on, send what you type to Google's or DuckDuckGo's suggestion service, only when that is
+  the chosen engine. "Chrome default" gets no suggestions: the page can not tell which engine Chrome uses.
 - Bookmarks are read and edited through Chrome's bookmarks API and never leave Chrome.
 
 ## Credits

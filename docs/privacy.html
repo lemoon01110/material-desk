@@ -101,7 +101,7 @@ footer a { margin: 0 8px; }
                 <td>Only as a fallback, when no location or city is available, or the city name lookup fails</td>
                 <td>Nothing besides the request itself. It uses the request's IP address to estimate your city.</td></tr>
             <tr><td><a href="https://policies.google.com/privacy">Google</a> search suggestions</td>
-                <td>While you type in the search bar, if suggestions are on and Google is the chosen engine (Bing, Brave, Wikipedia and YouTube get no suggestions)</td>
+                <td>While you type in the search bar, if suggestions are on and Google is the chosen engine (Chrome default, Bing, Brave, Wikipedia and YouTube get no suggestions)</td>
                 <td>The text typed so far</td></tr>
             <tr><td><a href="https://duckduckgo.com/privacy">DuckDuckGo</a> search suggestions</td>
                 <td>While you type in the search bar, if suggestions are on and DuckDuckGo is chosen</td>
@@ -109,6 +109,7 @@ footer a { margin: 0 8px; }
         </tbody>
     </table>
     </div>
+    <p>With the search engine set to "Chrome default" (the default), a search is handed to Chrome, which runs it with the search engine chosen in Chrome's own settings, the same as a search from the address bar. Material Desk does not see or keep the results. With another engine picked in Material Desk, Chrome goes to that site's results page.</p>
     <p>When you run a search, open a bookmark or click a Google apps link, Chrome simply goes to that website, the same as typing the address yourself. That website's own privacy policy applies.</p>
 </section>
 
@@ -149,6 +150,7 @@ footer a { margin: 0 8px; }
         <li><strong>Bookmarks:</strong> shows and edits your Chrome bookmarks in the bookmarks column.</li>
         <li><strong>Favicon:</strong> shows site icons from Chrome's icon cache next to bookmarks.</li>
         <li><strong>Geolocation:</strong> gets your location for the weather card when "Use my location" is on.</li>
+        <li><strong>Search:</strong> runs searches from the search bar with the search engine set in Chrome, when "Chrome default" is the chosen engine.</li>
         <li><strong>Host access</strong> to the weather, geocoding and suggestion services listed above, and to no other websites.</li>
     </ul>
 </section>
