@@ -19,7 +19,7 @@ match your wallpaper (Material You colors).
 - **Bookmarks** from Chrome, as a grid or a list, with folders, search and the Google apps.
 - **Wallpapers and colors:** the built-in Dusk wallpaper or your own picture, a Dim slider, and a Material You dark
   color scheme made from the picture on your device.
-- Side columns fold to an icon or widen to half or the whole page. Keyboard shortcuts (press `?`).
+- Side columns fold to an icon or widen to half or the whole page.
 
 ## Install
 

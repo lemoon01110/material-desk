@@ -476,7 +476,6 @@
                     ${icon("add", "td-field-ic")}
                     <input class="td-add-in" data-k="add" type="text" maxlength="500" spellcheck="true" placeholder="Add a to-do"
                         aria-label="Add a to-do. Understands dates like tmr or fri, times like 5pm, ! for priority, # for tags and @ for a list">
-                    <kbd class="td-kbd" aria-hidden="true">n</kbd>
                 </label>
                 <div class="td-qchips" aria-live="polite"></div>
             </form>
@@ -1187,8 +1186,6 @@
                 <p class="td-hint">${ui.sheetMsg ? esc(ui.sheetMsg) : "Export saves lists and to-dos as a JSON file. Import replaces them, with undo."}</p>
                 <h4 class="td-sh-t">Keyboard</h4>
                 <dl class="td-keys">
-                    <dt><kbd>n</kbd></dt><dd>Add a to-do</dd>
-                    <dt><kbd>/</kbd></dt><dd>Search</dd>
                     <dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>Move between to-dos</dd>
                     <dt><kbd>Space</kbd></dt><dd>Mark done</dd>
                     <dt><kbd>Enter</kbd></dt><dd>Open</dd>
@@ -1930,21 +1927,8 @@
         const t = e.target;
         const typing = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
         if (e.key === "Escape" && !col.contains(t) && !typing && (ui.open || ui.sheet)) { handleEsc(t, ""); return; }
-        if (typing || e.ctrlKey || e.metaKey || e.altKey || !S) return;
-        if (e.key === "n" || e.key === "N") {
-            e.preventDefault();
-            if (ui.search) closeSearch();
-            if (ui.sheet) { ui.sheet = false; render(); }
-            unfold(() => addIn.focus());
-        } else if (e.key === "/") { e.preventDefault(); unfold(openSearch); }
+        // No page-wide shortcut keys (owner 2026-11-13: "Remove keybinds"): only Escape, above, from outside the column.
     });
-    // A folded column hides its fields: open it first (collapse.js follows the setting), then focus.
-    function unfold(then) {
-        // Under the bookmarks' full page: step them back to half first (collapse.js), so "n" and "/" reach the column.
-        if (rootCls("full-bookmarks") && window.LemonLayout && window.LemonLayout.reveal) { window.LemonLayout.reveal("left").then(then, then); return; }
-        if (!rootCls("fold-todo")) { then(); return; }
-        Promise.resolve(Lemon.settings.set({ todoCollapsed: false })).then(then, then);
-    }
 
     // ---- reorder (keyboard and pointer) --------------------------------------------------------------------------
     // Renumber the whole list in the order on screen. Open items of the list that are not on screen (the pinned Focus

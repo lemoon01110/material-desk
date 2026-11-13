@@ -39,10 +39,6 @@ Make it yours
 
 Keep the built-in Dusk wallpaper or upload your own picture, and the page takes its colors from it. Fold either side column away, make the panels more or less see-through, and hide whatever you don't use.
 
-Keyboard
-
-Press ? on the page to see every shortcut. The ones you'll use most: s to search, n for a new to-do, b to search bookmarks, w for the weather. Chrome puts the cursor in the address bar when a new tab opens, so click the page first.
-
 Privacy
 
 No account, no ads, no tracking. Your to-dos and settings stay in your browser. The weather asks before it uses your location. It then goes to Open-Meteo for the forecast, and to BigDataCloud or ipinfo.io for the place name (ipinfo.io also guesses your city from your internet address if your location can't be read). Search suggestions are off until you turn them on. The mic uses Chrome's own speech recognition, which sends your voice to Google to turn it into text. Full policy: https://lemoon01110.github.io/material-desk/privacy.html

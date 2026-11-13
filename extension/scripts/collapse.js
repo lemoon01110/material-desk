@@ -126,7 +126,7 @@
         return done;
     }
 
-    // Returns the settings promise (keys.js waits for it before focusing inside a column that was folded).
+    // Returns the settings promise, which settles once the new size is saved and drawn.
     function setState(s, to, from) {
         const col = document.getElementById(s.col), rail = col && col.querySelector(".fold-rail");
         // Folding hides everything in the column, so a focused control there would drop the focus to the page:
@@ -292,7 +292,7 @@
         // A column open but hidden under the other one's full page (base.css): the other steps back to its half.
         const hiddenUnder = (sd) => { const o = SIDES.find((x) => x !== sd); return state(sd) !== "fold" && shown(o) && state(o) === "full"; };
         const reveal = (sd) => shown(sd) && hiddenUnder(sd) ? setState(SIDES.find((x) => x !== sd), "wide") : Promise.resolve();
-        // For keyboard shortcuts (keys.js): step a column one size smaller or bigger, or toggle its fold.
+        // Step a column one size smaller or bigger, or toggle its fold (the keyboard shortcuts that used these are gone).
         window.LemonLayout = {
             step(side, dir) {
                 const sd = SIDES.find((x) => x.side === side);
@@ -310,7 +310,7 @@
                 if (hiddenUnder(sd)) return reveal(sd);
                 return setState(sd, state(sd) === "fold" ? "normal" : "fold");
             },
-            // Before focusing inside a column (keys.js openCol): bring it out from under the other one's full page.
+            // Before focusing inside a column: bring it out from under the other one's full page.
             // Returns the settings promise.
             reveal(side) { return reveal(SIDES.find((x) => x.side === side)); },
         };

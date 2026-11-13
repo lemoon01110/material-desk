@@ -42,7 +42,6 @@ put together, the shared tokens and APIs, the saved data, and the dev tools.
 | Bookmarks and Google apps | scripts/bookmarks.js, styles/bookmarks.css |
 | Settings | scripts/settings.js, scripts/wallpaper.js (Wallpaper section), styles/settings.css |
 | Column folding and sizes | scripts/collapse.js |
-| Keyboard shortcuts | scripts/keys.js, styles/keys.css |
 | Background worker (applies updates promptly) | scripts/background.js |
 
 ## Colors and type
