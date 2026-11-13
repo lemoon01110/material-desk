@@ -150,7 +150,8 @@
                             Place names by BigDataCloud and ipinfo.io when needed.</p>
                         <p class="st-desc">Clock design after End4's dots-hyprland (GPL-3.0). Colors made with Google's
                             material-color-utilities (Apache-2.0). Fonts: Space Grotesk and Google Sans Flex (SIL Open Font License).</p>
-                        <p class="st-desc">Your data stays in this browser. Free software under the GPL-3.0.</p>
+                        <p class="st-desc">Your saved data stays in this browser. Search suggestions, when on, send what you type to a
+                            suggestion service (Google or DuckDuckGo). Free software under the GPL-3.0.</p>
                     </div>`,
                 ])}
             </div>
@@ -322,9 +323,15 @@
         return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
     };
 
+    // Export writes what Import reads back: settings, to-dos, the bookmark view and a built-in wallpaper. An uploaded
+    // picture is not in the file (not even its small preview), so a shared export never carries a photo.
+    const EXPORTED = ["settings", "todo", "bookmarksUi", "myntImported"];
     async function exportData() {
         try {
-            const data = await readAll();
+            const all = await readAll(), data = {};
+            for (const k of EXPORTED) if (all[k] !== undefined) data[k] = all[k];
+            const wp = all.wallpaper;
+            if (isPlain(wp) && Lemon.look.builtins.some(([id]) => id === wp.id)) data.wallpaper = { id: wp.id, dim: wp.dim };
             // "lemon-newtab" is the file format id from the first release; kept so older exports still import.
             const payload = { app: "lemon-newtab", version: 1, exportedAt: new Date().toISOString(), data };
             const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
@@ -342,7 +349,7 @@
     }
 
     // The parts of the saved data people know by name, in plain words ("settings, to-do list and bookmark view").
-    const NAMES = { settings: "settings", todo: "to-do list", bookmarksUi: "bookmark view" };
+    const NAMES = { settings: "settings", todo: "to-do list", bookmarksUi: "bookmark view", wallpaper: "wallpaper" };
     function describe(keys) {
         const named = Object.keys(NAMES).filter((k) => keys.includes(k)).map((k) => NAMES[k]);
         return named.length > 1 ? named.slice(0, -1).join(", ") + " and " + named[named.length - 1] : named[0] || "";
@@ -379,7 +386,13 @@
             out.bookmarksUi = ui;
         }
         if (typeof src.myntImported === "boolean") out.myntImported = src.myntImported;
-        if (!out.settings && !out.todo && !out.bookmarksUi) throw new Error("no saved data in it");
+        // A built-in wallpaper (an uploaded picture is not exported): its id and dim. The colors are not taken from the
+        // file: with none, wallpaper.js makes them again from the built-in picture after the reload.
+        const wp = src.wallpaper;
+        if (isPlain(wp) && Lemon.look.builtins.some(([id]) => id === wp.id)) {
+            out.wallpaper = { id: wp.id, dim: Math.max(0, Math.min(80, Math.round(+wp.dim) || 0)), colors: {} };
+        }
+        if (!out.settings && !out.todo && !out.bookmarksUi && !out.wallpaper) throw new Error("no saved data in it");
         return out;
     }
 
@@ -418,8 +431,11 @@
         }
         ask(`Replace your saved data with ${file.name}? This overwrites your ${describe(Object.keys(data))}.`, "Replace", async () => {
             try {
-                await writeAll(data);
+                const { wallpaper, ...rest } = data;
+                await writeAll(rest);
                 if (data.settings) await Lemon.settings.set(data.settings);
+                // Through Lemon.look, which also drops an uploaded picture the imported wallpaper replaces.
+                if (wallpaper) await Lemon.look.set(wallpaper);
                 say("Imported. Reloading the page");
                 setTimeout(() => location.reload(), 900);
             } catch (err) { say("Could not import: " + (err.message || err), true); }
@@ -434,12 +450,15 @@
         else if (what === "import") { hideConfirm(); fileInput.click(); }
         else if (what === "reset") {
             ask("Reset every setting to its default? Your to-do list and bookmarks stay as they are.", "Reset", async () => {
-                await Lemon.settings.set({ ...Lemon.settings.defaults });
-                say("Settings are back to their defaults");
+                try {
+                    await Lemon.settings.set({ ...Lemon.settings.defaults });
+                    say("Settings are back to their defaults");
+                } catch (err) { say("Could not reset: " + (err.message || err), true); }
             }, true);
         }
         else if (what === "cancel") hideConfirm(true);
-        else if (what === "confirm") { const run = pending; hideConfirm(); if (run) run(); }
+        // The confirm button hides with its box: the focus goes to Export rather than to the page.
+        else if (what === "confirm") { const run = pending; hideConfirm(true); if (run) run(); }
     });
 
     // ---- start ------------------------------------------------------------------------------------------------------

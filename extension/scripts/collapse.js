@@ -33,27 +33,30 @@
         return st[s.size] === "wide" && wideFits() ? "wide" : "normal";
     };
 
+    // A column turned off in Settings (settings todo / bookmarks) is never wide or full: it would cover the other one.
+    const shown = (s) => !!Lemon.settings.get()[s.cls];
     function applyWide() {
         for (const s of SIDES) {
-            root.classList.toggle("wide-" + s.cls, state(s) === "wide");
-            root.classList.toggle("full-" + s.cls, state(s) === "full");
+            root.classList.toggle("wide-" + s.cls, shown(s) && state(s) === "wide");
+            root.classList.toggle("full-" + s.cls, shown(s) && state(s) === "full");
         }
     }
 
     // Full: the whole page, one step beyond half.
     const ORDER = ["fold", "normal", "wide", "full"];
+    // Returns the settings promise (keys.js waits for it before focusing inside a column that was folded).
     function setState(s, to) {
-        if (to === "fold") Lemon.settings.set({ [s.fold]: true, [s.size]: "normal" });
+        if (to === "fold") return Lemon.settings.set({ [s.fold]: true, [s.size]: "normal" });
         // Both columns may be wide at once.
-        else if (to === "wide") Lemon.settings.set({ [s.fold]: false, [s.size]: "wide" });
+        else if (to === "wide") return Lemon.settings.set({ [s.fold]: false, [s.size]: "wide" });
         // Only one column can fill the page; the other steps back to its own half or less.
         else if (to === "full") {
             const other = SIDES.find((o) => o !== s);
             const patch = { [s.fold]: false, [s.size]: "full" };
             if (Lemon.settings.get()[other.size] === "full") patch[other.size] = "wide";
-            Lemon.settings.set(patch);
+            return Lemon.settings.set(patch);
         }
-        else Lemon.settings.set({ [s.fold]: false, [s.size]: "normal" });
+        return Lemon.settings.set({ [s.fold]: false, [s.size]: "normal" });
     }
     // Width (page px) each preset gives the column, for picking the one nearest to where the grip was let go.
     function presetWidth(name) {
@@ -129,7 +132,9 @@
                     live(Math.round(Math.min(presetWidth("full"), Math.max(64, widthAt(e.clientX)))));
                 });
                 el.addEventListener("pointerup", (e) => { if (drag && drag.el === el) finish(e); });
-                el.addEventListener("pointercancel", () => { if (drag && drag.el === el) { drag = null; release(); } });
+                el.addEventListener("pointercancel", () => {
+                    if (drag && drag.el === el) { drag = null; delete rail.dataset.dragged; release(); }   // no click follows
+                });
             };
             const finish = (e) => {
                 if (!drag) return;
@@ -154,7 +159,9 @@
                 const grow = (e.key === "ArrowRight") === (s.side === "left");
                 const allowed = ORDER.filter((n) => n !== "wide" || wideFits());
                 const i = allowed.indexOf(state(s)) + (grow ? 1 : -1);
-                if (i >= 0 && i < allowed.length) setState(s, allowed[i]);
+                if (i < 0 || i >= allowed.length) return;
+                // Folding hides this grip: the focus goes to the folded icon, which opens the column again.
+                setState(s, allowed[i]).then(() => { if (allowed[i] === "fold") rail.focus({ preventScroll: true }); }, () => {});
             });
             grid.appendChild(handle);
             handles.push([s, handle]);
@@ -173,7 +180,7 @@
             paint();
         }).observe(grid);
         Lemon.settings.onChange((all, patch) => {
-            if (SIDES.some((s) => s.fold in patch || s.size in patch)) paint();
+            if (SIDES.some((s) => s.fold in patch || s.size in patch || s.cls in patch)) paint();
         });
         // Clicking a column's title collapses it: back to normal from half or full, folded from normal.
         document.addEventListener("click", (e) => {
@@ -190,13 +197,16 @@
         window.LemonLayout = {
             step(side, dir) {
                 const sd = SIDES.find((x) => x.side === side);
+                if (!shown(sd)) return Promise.resolve();   // turned off in Settings
                 const order = ORDER.filter((n) => n !== "wide" || wideFits());
                 const i = order.indexOf(state(sd)) + dir;
-                if (i >= 0 && i < order.length) setState(sd, order[i]);
+                return i >= 0 && i < order.length ? setState(sd, order[i]) : Promise.resolve();
             },
+            // Returns the settings promise: the column's contents are shown once it settles.
             toggle(side) {
                 const sd = SIDES.find((x) => x.side === side);
-                setState(sd, state(sd) === "fold" ? "normal" : "fold");
+                if (!shown(sd)) return Promise.resolve();
+                return setState(sd, state(sd) === "fold" ? "normal" : "fold");
             },
         };
         paint();

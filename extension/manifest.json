@@ -3,12 +3,12 @@
  "name": "Material Desk",
  "version": "4.0.0.23",
  "description": "A calm Material You new tab: cookie clock, weather, to-do list and bookmarks, colored from your wallpaper.",
+ "minimum_chrome_version": "116",
  "permissions": [
   "storage",
   "bookmarks",
   "favicon",
-  "geolocation",
-  "search"
+  "geolocation"
  ],
  "host_permissions": [
   "https://www.google.com/complete/search*",

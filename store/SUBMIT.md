@@ -16,7 +16,8 @@ Files this checklist uses:
 ## Part A. Before you open the dashboard
 
 1. **Fix the known review risks** (section "Known review risks" at the end). Ask Claude to do them in `extension/`.
-   The two that matter most: the search bar has to go through Chrome's search API, and unused permissions must go.
+   The one that matters most: the search bar going through Chrome's search API (the unused `search` permission is
+   already gone).
 2. **Check the manifest text.** In the final `extension/manifest.json` the `name` must be `Material Desk` and the
    `description` must be the short description from LISTING.md. These two can not be edited in the dashboard later
    without uploading a new version.
@@ -149,9 +150,9 @@ These come from reading the code on 2026-11-12 against the policies cited below.
    official Chrome search APIs or respecting the user's active search settings." Right now the search bar builds
    Google, DuckDuckGo, Bing, Brave, Wikipedia and YouTube URLs itself (`scripts/center.js`). Safest fix: make the
    search bar run queries with `chrome.search.query` (the user's default engine), at least as the default choice.
-   This also gives the declared `search` permission a real use.
-2. **Unused permission.** `search` is in the manifest but `chrome.search` is never called. Unused permissions are
-   rejected ("Purple Potassium"). Either use it (point 1) or remove it.
+   Doing so needs the `search` permission back in the manifest, with its answer from PERMISSIONS.md.
+2. **Unused permission.** Done: `search` was removed from the manifest on 2026-11-12, since `chrome.search` was never
+   called. Unused permissions are rejected ("Purple Potassium").
 3. **Disclosure and consent before data leaves the device.** The Disclosure Requirements policy says an item that
    handles user data must prominently disclose what it collects and how it is used, and get the user's
    affirmative consent. The July 2026 policy update extends prominent disclosure to all data collection, enforced
@@ -165,8 +166,11 @@ These come from reading the code on 2026-11-12 against the policies cited below.
 5. **Names and text.** Done: the manifest, UI text, export file names and messages say Material Desk.
 6. **Managed storage schema.** If the desktop color policy (`storage.managed_schema`) is not part of the public
    product, drop it from the store build.
-7. **Permissions in the privacy policy.** `docs/privacy.html` lists Search under Permissions. If `search` is
-   removed instead of used, delete that line too.
+7. **Permissions in the privacy policy.** Done: the Search line is gone from `docs/privacy.html` with the permission.
+   Add it back if point 1 brings the permission back.
+8. **License files in the package.** Done: `tools/build.sh` copies LICENSE (GPL-3.0) and NOTICE into every build.
+9. **Minimum Chrome version.** The manifest asks for Chrome 116 or newer (`minimum_chrome_version`), the first
+   version with `chrome.runtime.getContexts`, which the background worker uses.
 
 ---
 

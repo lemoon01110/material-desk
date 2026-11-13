@@ -61,6 +61,11 @@
         try { const u = new URL(url); return (u.host || u.protocol.replace(":", "")).replace(/^www\./, ""); }
         catch (e) { return ""; }
     }
+    // Script-carrying schemes (javascript:, data: and the like) never become a live link, never open and are never
+    // saved from here. Everything else Chrome can open from a bookmark (http, chrome://, file://, mailto:, app links) is fine.
+    function safeUrl(url) {
+        try { return !/^(javascript|data|vbscript|blob|filesystem):$/i.test(new URL(url).protocol); } catch (e) { return false; }
+    }
     // "github.com/foo" -> "https://github.com/foo"; returns "" when it cannot be a link.
     function normalizeUrl(raw) {
         let s = String(raw || "").trim();
@@ -71,7 +76,7 @@
             const local = /^(localhost|127\.|10\.|192\.168\.|\d+\.\d+\.\d+\.\d+)/.test(s);
             s = (local ? "http://" : "https://") + s;
         }
-        try { const u = new URL(s); return u.href; } catch (e) { return ""; }
+        try { const u = new URL(s); return safeUrl(u.href) ? u.href : ""; } catch (e) { return ""; }
     }
     // A title from the link's host: "github.com" -> "GitHub", "example.com" -> "Example", "docs.google.com" stays.
     const BRANDS = { github: "GitHub", gitlab: "GitLab", youtube: "YouTube", openrouter: "OpenRouter", linkedin: "LinkedIn",
@@ -91,14 +96,19 @@
 
     function openUrl(url, newTab, foreground) {
         if (!url) return;
-        if (newTab) {
-            if (api.tabs && api.tabs.create) api.tabs.create({ url, active: !!foreground });
-            else window.open(url, "_blank", "noopener");
-        } else if (api.tabs && api.tabs.update && !/^https?:/i.test(url)) {
-            api.tabs.update({ url }); // chrome://, file:// and friends cannot be opened by the page itself
-        } else {
-            location.href = url;
-        }
+        if (!safeUrl(url)) { snack("This kind of link cannot open from the new tab page"); return; }
+        try {
+            // Chrome may refuse a link (file:// without file access, say): say so instead of failing silently.
+            if (newTab) {
+                if (api.tabs && api.tabs.create) Promise.resolve(api.tabs.create({ url, active: !!foreground })).catch(report);
+                else window.open(url, "_blank", "noopener");
+            } else if (api.tabs && api.tabs.update && !/^https?:/i.test(url)) {
+                // chrome://, file:// and friends cannot be opened by the page itself
+                Promise.resolve(api.tabs.update({ url })).catch(report);
+            } else {
+                location.href = url;
+            }
+        } catch (err) { report(err); }
     }
 
     // ---- model --------------------------------------------------------------------------------------------------------
@@ -230,7 +240,7 @@
             sub = `<span class="bm-host">${highlight(h, tokens)}</span>${f ? `<span class="bm-path" title="${esc(t.map(folderName).join(" / "))}">${icon("folder")}<span class="bm-path-name">${esc(f)}</span></span>` : ""}`;
         }
         return `<div class="bm-item" role="listitem" data-id="${n.id}"${drag}${locked}>
-            <a class="bm-link" href="${esc(n.url)}" draggable="false" title="${esc(title)}&#10;${esc(n.url)}"
+            <a class="bm-link" ${safeUrl(n.url) ? `href="${esc(n.url)}"` : `tabindex="0" aria-disabled="true"`} draggable="false" title="${esc(title)}&#10;${esc(n.url)}"
                 aria-keyshortcuts="Shift+F10 F2 Delete">
                 <span class="bm-ico">${favicon(n.url, title)}</span>
                 <span class="bm-text"><span class="bm-title">${highlight(title, tokens)}</span><span class="bm-sub">${sub}</span></span>
@@ -360,6 +370,12 @@
     }
 
     function render(keepScroll) {
+        // The list under an open menu is about to be replaced (a change from sync or another window): close the menu
+        // and keep the keyboard on its item.
+        if (!menu.hidden) {
+            if (menu.contains(document.activeElement)) focusAfter = { id: menuFor, fallback: true };
+            closeMenu(false);
+        }
         const top = body.scrollTop;
         // A radio group is one Tab stop: only the checked view button takes focus from Tab (arrows switch).
         for (const b of host.querySelectorAll(".bm-seg [data-view]")) {
@@ -401,10 +417,12 @@
         if (!BM) { root = { id: "0", children: [] }; indexTree(root); render(); return; }
         const [tree] = await BM.getTree();
         const prevFolder = ui.folderId;
+        const prevTrail = trail(ui.folderId); // read before the index is rebuilt
         indexTree(tree);
         if (!byId.has(ui.folderId) || byId.get(ui.folderId).url || byId.get(ui.folderId) === root) {
             // The open folder went away: climb to the nearest folder that still exists.
-            ui.folderId = (roots().find((r) => (r.children || []).length) || roots()[0] || {}).id || null;
+            const up = prevTrail.reverse().find((f) => byId.has(f.id) && !byId.get(f.id).url && byId.get(f.id) !== root);
+            ui.folderId = up ? up.id : (roots().find((r) => (r.children || []).length) || roots()[0] || {}).id || null;
         }
         render(prevFolder === ui.folderId);
     }
@@ -519,7 +537,7 @@
         const b = e.target.closest("[data-menu]");
         if (!b) return;
         const id = menuFor;
-        closeMenu(false);
+        closeMenu(true); // focus back on the item first, so a sheet opened next returns there when it closes
         act(b.dataset.menu, id);
     });
     document.addEventListener("pointerdown", (e) => {
@@ -536,7 +554,7 @@
             else if (what === "open-new") openUrl(n.url, true, false);
             else if (what === "open-all") {
                 const links = [];
-                const walk = (x) => { if (x.url) links.push(x.url); (x.children || []).forEach(walk); };
+                const walk = (x) => { if (x.url && safeUrl(x.url)) links.push(x.url); (x.children || []).forEach(walk); };
                 walk(n);
                 links.slice(0, 50).forEach((u) => openUrl(u, true, false));
                 if (links.length > 50) snack("Opened the first 50 bookmarks");
@@ -630,7 +648,7 @@
     function folderOptions(selectedId, excludeId) {
         const out = [];
         const walk = (n, depth) => {
-            if (n.url || n.id === excludeId) return;
+            if (n.url || n.id === excludeId || n.unmodifiable) return; // managed folders cannot take new items
             if (n !== root) {
                 out.push(`<option value="${n.id}"${n.id === selectedId ? " selected" : ""}>${"  ".repeat(depth)}${esc(folderName(n))}</option>`);
             }
@@ -672,12 +690,14 @@
             onDelete: () => { closeSheet(); removeNode(n); },
             onOk: async () => {
                 const f = $(".bm-form", sheet);
-                const href = normalizeUrl(f.url.value);
+                // An existing link kept as it is saves even when it is not one this page would make (a bookmarklet).
+                const href = editing && f.url.value.trim() === n.url ? n.url : normalizeUrl(f.url.value);
                 if (!href) { $("#bm-f-err", sheet).hidden = false; f.url.setAttribute("aria-invalid", "true"); f.url.focus(); return; }
                 const name = f.title.value.trim() || titleFromUrl(href);
                 const folder = f.folder.value;
                 try {
                     if (editing) {
+                        focusAfter = { id: n.id, fallback: true }; // the redraw replaces the focused link
                         await BM.update(n.id, { title: name, url: href });
                         if (folder !== n.parentId) await BM.move(n.id, { parentId: folder });
                         closeSheet();
@@ -687,7 +707,7 @@
                         if (folder !== ui.folderId) go(folder);
                         snack(`Added ${name}`);
                     }
-                } catch (err) { report(err); }
+                } catch (err) { focusAfter = null; report(err); }
             },
         });
         wireUrlField($("#bm-f-url", sheet), $("#bm-f-title", sheet));
@@ -705,7 +725,8 @@
         urlEl.addEventListener("paste", (e) => {
             const text = (e.clipboardData && e.clipboardData.getData("text")) || "";
             const href = normalizeUrl(text);
-            if (!href) return;
+            // Pasting into part of a link (a path at the end, say) is a normal paste.
+            if (!href || (urlEl.value && !(urlEl.selectionStart === 0 && urlEl.selectionEnd === urlEl.value.length))) return;
             e.preventDefault();
             urlEl.value = href;
             sync();
@@ -739,13 +760,13 @@
                 const f = $(".bm-form", sheet);
                 const name = f.title.value.trim() || "New folder";
                 try {
-                    if (editing) { await BM.update(n.id, { title: name }); closeSheet(); }
+                    if (editing) { focusAfter = { id: n.id, fallback: true }; await BM.update(n.id, { title: name }); closeSheet(); }
                     else {
                         const made = await BM.create({ parentId: f.folder.value, title: name });
                         closeSheet();
                         focusMade(made.id); // e.g. the welcome card's "New folder" button is gone after this
                     }
-                } catch (err) { report(err); }
+                } catch (err) { focusAfter = null; report(err); }
             },
         });
     }
@@ -753,7 +774,7 @@
     function moveSheet(n) {
         const rows = [];
         const walk = (x, depth) => {
-            if (x.url || x.id === n.id) return;
+            if (x.url || x.id === n.id || x.unmodifiable) return; // managed folders cannot take new items
             if (x !== root) {
                 const here = x.id === n.parentId;
                 rows.push(`<button type="button" class="bm-move-row${here ? " here" : ""}" data-to="${x.id}" style="--depth:${depth}"
@@ -774,10 +795,11 @@
             const b = e.target.closest("[data-to]");
             if (!b) return;
             try {
-                if (b.dataset.to !== n.parentId) await BM.move(n.id, { parentId: b.dataset.to });
+                // The item leaves this folder: the keyboard goes on to what is left.
+                if (b.dataset.to !== n.parentId) { focusAfter = { id: n.id, fallback: true }; await BM.move(n.id, { parentId: b.dataset.to }); }
                 closeSheet();
                 if (b.dataset.to !== n.parentId) snack(`Moved to ${folderName(byId.get(b.dataset.to))}`, "Show", () => go(b.dataset.to));
-            } catch (err) { report(err); }
+            } catch (err) { focusAfter = null; report(err); }
         });
         const here = sheet.querySelector(".bm-move-row:not(.here)");
         if (here) here.focus();
@@ -896,6 +918,7 @@
         const link = e.target.closest(".bm-link");
         if (!link) return;
         const it = link.closest(".bm-item");
+        if (!it) return; // the grid's "Add" tile is a plain button
         const n = byId.get(it.dataset.id);
         if ((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu") { e.preventDefault(); openMenu(it.dataset.id, link); return; }
         // A folder with items asks first (focus stays in that sheet); removeNode moves focus on after the delete.
@@ -953,7 +976,8 @@
     body.addEventListener("paste", (e) => {
         if (!e.target.classList.contains("bm-quick-url")) return;
         const href = normalizeUrl((e.clipboardData && e.clipboardData.getData("text")) || "");
-        if (!href) return;
+        const el = e.target;
+        if (!href || (el.value && !(el.selectionStart === 0 && el.selectionEnd === el.value.length))) return;
         e.preventDefault();
         e.target.value = href;
         e.target.dispatchEvent(new Event("input", { bubbles: true }));
@@ -969,7 +993,22 @@
         nav.querySelectorAll(".bm-drop-into").forEach((x) => x.classList.remove("bm-drop-into"));
         body.classList.remove("bm-drop-end");
     }
+    // A drag of ours carries DND_TYPE. Without it a leftover `drag` is stale: the spring-open redraw removed the dragged
+    // row, so its dragend never reached the document. Forget it, so a link dropped later is added, not taken for a move.
+    function endDrag() {
+        clearDrop(); clearTimeout(springTimer); springId = null; drag = null;
+        host.classList.remove("bm-dragging-on");
+        host.querySelectorAll(".bm-dragging").forEach((x) => x.classList.remove("bm-dragging"));
+    }
+    function syncDrag(dt) { if (drag && !(dt && [...dt.types].includes(DND_TYPE))) endDrag(); }
+    // A pointer press cannot happen during a drag, so the next one tidies a drag whose dragend was lost.
+    document.addEventListener("pointerdown", () => { if (drag) endDrag(); }, true);
     function dropTarget(e) {
+        const t = dropSpot(e);
+        // Managed bookmarks (enterprise policy) cannot be changed: nothing drops into them.
+        return t && !(byId.get(t.parentId) || {}).unmodifiable ? t : null;
+    }
+    function dropSpot(e) {
         const cur = current();
         const it = e.target.closest(".bm-item");
         if (!total) return { parentId: roots()[0].id, index: undefined, end: true }; // the welcome card saves to the bar
@@ -1001,6 +1040,7 @@
         host.classList.add("bm-dragging-on");
     });
     body.addEventListener("dragover", (e) => {
+        syncDrag(e.dataTransfer);
         if (query || (!drag && !hasLink(e.dataTransfer))) return;
         const t = dropTarget(e);
         clearDrop();
@@ -1017,6 +1057,7 @@
     });
     body.addEventListener("dragleave", (e) => { if (!body.contains(e.relatedTarget)) { clearDrop(); clearTimeout(springTimer); springId = null; } });
     body.addEventListener("drop", (e) => {
+        syncDrag(e.dataTransfer);
         if (query) return;
         const t = dropTarget(e);
         clearDrop(); clearTimeout(springTimer); springId = null;
@@ -1025,8 +1066,9 @@
         doDrop(e.dataTransfer, t.parentId, t.index);
     });
     nav.addEventListener("dragover", (e) => {
+        syncDrag(e.dataTransfer);
         const b = e.target.closest("[data-drop]");
-        if (!b || (!drag && !hasLink(e.dataTransfer))) return;
+        if (!b || (byId.get(b.dataset.drop) || {}).unmodifiable || (!drag && !hasLink(e.dataTransfer))) return;
         if (drag && (b.dataset.drop === drag.id || insideOf(b.dataset.drop, drag.id))) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = drag ? "move" : "copy";
@@ -1035,17 +1077,14 @@
     });
     nav.addEventListener("dragleave", (e) => { const b = e.target.closest("[data-drop]"); if (b && !b.contains(e.relatedTarget)) b.classList.remove("bm-drop-into"); });
     nav.addEventListener("drop", (e) => {
+        syncDrag(e.dataTransfer);
         const b = e.target.closest("[data-drop]");
-        if (!b) return;
+        if (!b || (byId.get(b.dataset.drop) || {}).unmodifiable) return;
         e.preventDefault();
         clearDrop();
         doDrop(e.dataTransfer, b.dataset.drop, undefined);
     });
-    document.addEventListener("dragend", () => {
-        clearDrop(); clearTimeout(springTimer); springId = null; drag = null;
-        host.classList.remove("bm-dragging-on");
-        host.querySelectorAll(".bm-dragging").forEach((x) => x.classList.remove("bm-dragging"));
-    });
+    document.addEventListener("dragend", endDrag);
     async function doDrop(dt, parentId, index) {
         const id = drag && drag.id;
         drag = null;

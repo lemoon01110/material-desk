@@ -133,7 +133,9 @@
     const iso = (ms) => new Date(ms).toISOString().slice(0, 16);
     const plusHour = (t) => iso(tms(t) + 3600000);
     // The place's clock now: the time of the reading plus the time since the fetch (a cached reading gets older).
-    const placeNow = (w) => tms(w.time) + Math.max(0, Date.now() - w.fetched);
+    // Open-Meteo's current.time is the start of its 15-minute slot, so the place's UTC offset gives the real clock.
+    const placeNow = (w) => Number.isFinite(w.offset) ? Date.now() + w.offset * 1000
+        : tms(w.time) + Math.max(0, Date.now() - w.fetched);
     const ageMin = (w) => (Date.now() - w.fetched) / 60000;
     const STALE = 45;   // minutes: older data says how old it is instead of pretending to be now
     function ago(w) {
@@ -230,7 +232,7 @@
         else a = `Steady near ${deg(w.temp)}`;
         const wet = hs.reduce((x, h) => h.rain > x.rain ? h : x, hs[0]);
         const b = wet.rain >= 30 ? `${window.weatherKind(wet.code) === "snow" ? "snow" : "rain"} chances rise to ${wet.rain}% by ${hourLabel(wet.time)}`
-            : wet.rain >= 10 ? `rain chances stay under ${Math.ceil(wet.rain / 10) * 10}%` : "no rain expected";
+            : wet.rain >= 10 ? `rain chances stay under ${Math.floor(wet.rain / 10) * 10 + 10}%` : "no rain expected";
         return `${a}, ${b}`;
     }
 
@@ -260,7 +262,10 @@
     // Tomorrow without its name: "65°, rain 85%".
     const tomorrowBit = (w) => tomorrowLine(w).replace(/^Tomorrow /, "");
 
+    // Today's low and high from the day the place is in now (a cache from before midnight already has tomorrow).
+    const todayRange = (w) => { const d = w.days[todayAt(w)]; return d ? { ...w, min: d.min, max: d.max } : w; };
     function nowItem(w) {
+        w = todayRange(w);
         const span = Math.max(w.max - w.min, 1);
         const at = clamp((w.temp - w.min) / span, 0, 1) * 100;
         const text = window.weatherText(w.code, w.isDay);
@@ -344,7 +349,7 @@
                 <span class="dlb-h">${hourLabel(h.time)}</span>
                 ${window.weatherIconSvg(window.weatherKind(h.code), h.isDay)}
                 <span class="dlb-t">${deg(h.temp)}</span>
-                <span class="dlb-pp">${h.rain >= 20 ? h.rain + "%" : ""}</span>`, ` data-k="hour" data-t="${h.time}"`);
+                <span class="dlb-pp">${h.rain >= 20 ? h.rain + "%" : ""}</span>`, ` data-k="hour" data-t="${esc(h.time)}"`);
         }).join("");
     }
 
@@ -356,7 +361,7 @@
             <span class="dlb-h">${dayName(d.date, j + 1)}</span>
             ${window.weatherIconSvg(dayKind(d), true)}
             <span class="dlb-t">${deg(d.max)}<span class="dlb-lo">${deg(d.min)}</span></span>
-            <span class="dlb-pp">${d.rain >= 20 ? d.rain + "%" : ""}</span>`, ` data-k="day" data-d="${d.date}"`)).join("");
+            <span class="dlb-pp">${d.rain >= 20 ? d.rain + "%" : ""}</span>`, ` data-k="day" data-d="${esc(d.date)}"`)).join("");
     }
 
     // The caption on the bottom hairline: about the part of the strip in view (never a repeat of Now's outlook).
@@ -373,9 +378,13 @@
     function render(card, w) {
         const old = trackOf();
         const keepLeft = old ? old.scrollLeft : null;
-        const focusKey = card.contains(document.activeElement) ? keyOf(document.activeElement) : null;
+        const focusKey = card.contains(document.activeElement) ? keyOf(document.activeElement)
+            : document.activeElement === document.body ? refocus : null;
+        refocus = null;
+        stopGlide(); drag = null;   // they point at the old strip
         st.items = []; st.active = "";
         if (w === "wait") {
+            refocus = focusKey;   // "Try again" goes away while loading: focus comes back when the result is drawn
             card.className = "dlb-quiet";
             card.innerHTML = quiet(`<p class="dlb-msg" role="status"><span class="dlw-shape dlw-wait">${shapeSvg("Cookie12Sided")}</span>Getting the weather…</p>`);
             card.setAttribute("aria-busy", "true");
@@ -385,9 +394,11 @@
         if (!w) {
             const why = !navigator.onLine ? "You’re offline, so the weather can’t load."
                 : failure && failure.name === "TimeoutError" ? "The weather service isn’t answering."
+                : failure && failure.message === "Place not found" ? "Can’t find that place. Check the place in Settings."
                 : "Can’t load the weather right now.";
             card.className = "dlb-quiet";
             card.innerHTML = quiet(`<p class="dlb-msg" role="alert">${why}</p><button type="button" class="dlb-retry">${I.refresh}Try again</button>`);
+            if (focusKey) card.querySelector(".dlb-retry").focus({ preventScroll: true });
             return;
         }
         card.className = "";
@@ -423,8 +434,11 @@
         layout(true);
         if (back) back.focus({ preventScroll: true });
         else if (focusKey === "more") card.querySelector(".dlb-more").focus({ preventScroll: true });
+        else if (focusKey) (card.querySelector(focusKey.startsWith("jump-") ? `.dlb-jump-${focusKey.slice(5)}` : ".dlb-stale") || now)
+            .focus({ preventScroll: true });
     }
     const keyOf = (b) => !b || !b.dataset ? "" : b.classList.contains("dlb-more") ? "more"
+        : b.matches(".dlb-stale, .dlb-retry") ? "retry" : b.classList.contains("dlb-jump") ? "jump-" + b.dataset.sec
         : `${b.dataset.k}|${b.dataset.m || b.dataset.t || b.dataset.d || b.getAttribute("aria-label")}`;
     // The items that share one tab stop: the top row (Now and the readings) or the strip.
     const group = (b) => [...card.querySelectorAll(b.dataset.g === "m" ? ".dlb-main .dlb-it" : ".dlb-track .dlb-it")];
@@ -573,7 +587,11 @@
     }
 
     function chart(w) {
-        const hs = w.hours.slice(0, 25), n = hs.length;
+        // From the hour the place is in now (a cached reading can be an hour or more old).
+        const pn = placeNow(w);
+        let s0 = 0;
+        w.hours.forEach((h, i) => { if (tms(h.time) <= pn) s0 = i; });
+        const hs = w.hours.slice(Math.min(s0, Math.max(w.hours.length - 2, 0)), 25), n = hs.length;
         const temps = hs.map((h) => tval(h.temp));
         const lo = Math.min(...temps), hi = Math.max(...temps), span = Math.max(hi - lo, 1);
         const x = (i) => (i + 0.5) / n * 100;
@@ -589,7 +607,7 @@
             <span class="dlw-cl-x" style="left:${x(i)}%">${i === 0 ? "Now" : hourLabel(h.time)}</span>
             ${h.rain >= 10 && 100 - h.rain * 0.26 - y(temps[i]) >= 18 ? `<span class="dlw-cl-p" style="left:${x(i)}%;top:${100 - h.rain * 0.26}%">${h.rain}%</span>` : ""}`).join("");
         // One column per hour: a tooltip, and the hour picked in the band gets a tint and its own label.
-        const hits = hs.map((h, i) => `<i data-t="${h.time}" style="left:${i / n * 100}%;width:${100 / n}%" title="${esc(`${hourLabel(h.time)}, ${deg(h.temp)}, ${window.weatherText(h.code, h.isDay)}, rain ${h.rain}%${h.mm ? ", " + amount(h.mm) : ""}`)}"><span>${hourLabel(h.time)} ${Math.round(temps[i])}°</span></i>`).join("");
+        const hits = hs.map((h, i) => `<i data-t="${esc(h.time)}" style="left:${i / n * 100}%;width:${100 / n}%" title="${esc(`${hourLabel(h.time)}, ${deg(h.temp)}, ${window.weatherText(h.code, h.isDay)}, rain ${h.rain}%${h.mm ? ", " + amount(h.mm) : ""}`)}"><span>${hourLabel(h.time)} ${Math.round(temps[i])}°</span></i>`).join("");
         const hiAt = temps.indexOf(hi), loAt = temps.indexOf(lo), wet = Math.max(...hs.map((h) => h.rain));
         const summary = `Temperature over the next 24 hours from ${Math.round(lo)}° to ${Math.round(hi)}°, warmest at ` +
             `${hourLabel(hs[hiAt].time)}, coolest at ${hourLabel(hs[loAt].time)}. Highest chance of rain ${wet}%.`;
@@ -614,7 +632,7 @@
         const lo = Math.min(...ds.map((d) => d.min)), hi = Math.max(...ds.map((d) => d.max));
         const span = Math.max(hi - lo, 1);
         return ds.map((d, i) => `
-            <li data-d="${d.date}" title="${esc(`${window.weatherText(d.code, true)}, ${amount(d.mm)}`)}">
+            <li data-d="${esc(d.date)}" title="${esc(`${window.weatherText(d.code, true)}, ${amount(d.mm)}`)}">
                 <span class="dlw-dn">${i === t ? "Today" : dayName(d.date, 2)}</span>
                 ${window.weatherIconSvg(dayKind(d), true)}
                 <span class="dlw-dp${d.rain >= 30 ? " dlw-dp-on" : ""}">${d.rain >= 10 ? `${I.drop}${d.rain}%` : ""}</span>
@@ -659,7 +677,7 @@
             today.uvMax != null ? `Up to ${Math.round(today.uvMax)} today, ${uvWord(today.uvMax).toLowerCase()}` : "",
             meter(w.uv / 11, "UV scale 0 to 11")));
         out.push(tile("dlw-t-pres", I.gauge, "Pressure", pressure(w.pressure), `<span class="dlw-trend">${trend[1]}${trend[0]}</span>`));
-        out.push(tile("dlw-t-vis", I.eye, "Visibility", distance(vis),
+        if (vis != null) out.push(tile("dlw-t-vis", I.eye, "Visibility", distance(vis),
             vis >= 10000 ? "Clear view" : vis >= 5000 ? "Light haze" : vis >= 1000 ? "Hazy" : "Fog"));
         // Rain: today's amount when today is wet, else the next wet day.
         if ((today.rain || 0) >= 50) {
@@ -709,7 +727,7 @@
                 <div class="dlw-words">
                     <h2 class="dlw-cond" id="dlw-d-title">${esc(text)} in ${esc(w.place)}</h2>
                     <div class="dlw-sub dlw-sum">${esc(daySentence(w))}</div>
-                    <div class="dlw-sub">Today ${deg(w.min)} to ${deg(w.max)}, ${feelsHead ? `<span class="dlw-narrow">feels like ${deg(w.feels)}, </span>` : ""}<span class="${stale ? "dlw-old" : ""}">updated ${stale ? ago(w) : updatedAt(w)}</span></div>
+                    <div class="dlw-sub">Today ${deg(todayRange(w).min)} to ${deg(todayRange(w).max)}, ${feelsHead ? `<span class="dlw-narrow">feels like ${deg(w.feels)}, </span>` : ""}<span class="${stale ? "dlw-old" : ""}">updated ${stale ? ago(w) : updatedAt(w)}</span></div>
                 </div>
                 <button type="button" class="icon-btn dlw-close" title="Close (Esc)">${I.close}<span class="dlw-sr">Close weather details</span></button>
             </header>
@@ -737,6 +755,7 @@
     }
 
     let card = null, detail = null, last = null, opener = null, suppressClick = false, failure = null, loading = false;
+    let again = false, refocus = null;
 
     // Mark what was clicked in the band (an hour in the chart, a day in the list, a tile) and bring it into view.
     function markPick(it) {
@@ -756,7 +775,10 @@
     }
 
     function openDetail(it) {
-        if (!last || last === "wait" || !detail || !detail.hidden) return;
+        // Open, or open again while the close animation still runs (the detail is not hidden yet).
+        if (!last || last === "wait" || !detail || (!detail.hidden && detail.classList.contains("dlw-in"))) return;
+        const closing = !detail.hidden;
+        if (closing) detail.classList.add("dlw-in");   // before the pending close can hide it
         opener = it || document.activeElement;
         if (detailFor !== last || Date.now() - detailAt > 60000) renderDetail(last);
         document.documentElement.classList.add("dlw-open");
@@ -799,7 +821,7 @@
         if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeDetail(); return; }
         if (e.key !== "Tab") return;
         // Keep the focus inside the dialog.
-        const f = [...detail.querySelectorAll("button, [tabindex='0']")].filter((el) => el.offsetParent !== null);
+        const f = [...detail.querySelectorAll("button, a[href], [tabindex='0']")].filter((el) => el.offsetParent !== null);
         if (!f.length) return;
         const first = f[0], end = f[f.length - 1];
         if (!detail.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
@@ -883,6 +905,7 @@
         });
         card.addEventListener("pointermove", (e) => {
             if (!drag) return;
+            if (!(e.buttons & 1)) { end(e); return; }   // released outside the card
             const dx = (e.clientX - drag.x) * (st.W / (drag.t.getBoundingClientRect().width || st.W));
             if (!drag.moved && Math.abs(dx) > 4) {
                 drag.moved = true;
@@ -924,9 +947,9 @@
         });
     }
 
-    function redraw() {
+    function redraw(same) {
         render(card, last);
-        if (detail && !detail.hidden) renderDetail(last);
+        if (detail && !detail.hidden) { if (!same) renderDetail(last); }
         else if (last && last !== "wait") {
             // Build the detail ahead of time, so opening it only flips a class.
             detailFor = null;
@@ -936,14 +959,16 @@
     }
 
     async function load(force) {
+        // No weather requests (location, forecast) while the Weather card is off.
+        if (!Lemon.settings.get().weather) return;
         let cached = null;
         try { cached = JSON.parse(localStorage.getItem(KEY)); } catch (e) { /* none */ }
         const place = JSON.stringify([Lemon.settings.get().useGPS, Lemon.settings.get().location]);
         if (cached && (cached.placeKey !== place || cached.v !== 2)) cached = null;
-        if (cached) { last = cached; redraw(); }
+        if (cached) { const same = last && last.fetched === cached.fetched; last = cached; redraw(same); }
         else if (!last) render(card, "wait");
         if (!force && cached && Date.now() - cached.fetched < FRESH) return;
-        if (loading) return;
+        if (loading) { if (force) again = true; return; }   // a place change while loading: load again after
         loading = true;
         card.classList.add("dlb-loading");
         try {
@@ -959,6 +984,7 @@
         } finally {
             loading = false;
             card.classList.remove("dlb-loading");
+            if (again) { again = false; load(true); }
         }
     }
 
@@ -990,6 +1016,7 @@
         load(false);
         Lemon.settings.onChange((s, patch) => {
             if ("weather" in patch && !s.weather) closeDetail();
+            if ("weather" in patch && s.weather) load(false);
             if ("useGPS" in patch || "location" in patch) load(true);
             else if ("units" in patch && last) redraw();
         });

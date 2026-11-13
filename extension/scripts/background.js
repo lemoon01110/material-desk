@@ -23,8 +23,9 @@ chrome.runtime.onUpdateAvailable.addListener(async () => {
 
 // A moment after a tab closes, so the closed page is gone from the open contexts.
 chrome.tabs.onRemoved.addListener(() => { setTimeout(applyIfIdle, 1000); });
-// ...or when a new tab goes on to a website (the usual path), which closes no tab.
-chrome.tabs.onUpdated.addListener((id, change) => { if (change.url) setTimeout(applyIfIdle, 1000); });
+// ...or when a new tab goes on to a website (the usual path), which closes no tab. change.url is only given with the
+// tabs permission, which the extension does not ask for, so a page starting to load is the signal.
+chrome.tabs.onUpdated.addListener((id, change) => { if (change.status === "loading") setTimeout(applyIfIdle, 1000); });
 
 let lastCheck = 0;
 function checkForUpdate() {

@@ -2,7 +2,7 @@
 
 Copy each answer into the matching field of the Privacy practices tab in the Developer Dashboard.
 
-Written from `extension/manifest.json` as it was on 2026-11-12 (version 4.0.0.23). The dashboard shows one justification box for each permission in the uploaded
+Written from `extension/manifest.json` as it was on 2026-11-12 (version 4.0.0.23, permissions storage, bookmarks, favicon and geolocation). The dashboard shows one justification box for each permission in the uploaded
 ZIP. If the final manifest adds or drops a permission, add or drop its answer here before you submit (see "Check
 before submitting" at the end).
 
@@ -21,7 +21,7 @@ Material Desk replaces Chrome's new tab page with a personal start page that bri
 ### storage
 
 ```
-Saves the user's settings (units, typed location, search engine, layout, panel opacity), to-do lists and cached weather in chrome.storage.local on the user's device so they persist across new tabs. Nothing in storage is sent to the developer.
+Saves the user's settings (units, typed location, search engine, layout, panel opacity), to-do lists, the bookmark view and the chosen wallpaper in chrome.storage.local on the user's device so they persist across new tabs. The weather cache is kept in the page's local storage and an uploaded wallpaper picture in IndexedDB, also only on the device. Nothing in storage is sent to the developer.
 ```
 
 ### bookmarks
@@ -39,19 +39,16 @@ Shows each bookmark's site icon next to it, using Chrome's own favicon cache thr
 ### geolocation
 
 ```
-Used only for the weather card: when "Use my location" is on in settings, the page reads the device location once per refresh and sends the rounded coordinates to Open-Meteo to get the local forecast and air quality, and to BigDataCloud to show the city name. The user can turn this off in settings and type a city instead.
+Used only for the weather card: when "Use my location" is on in settings, the page reads the device location once per refresh and sends the coordinates, rounded to 3 decimals, to Open-Meteo to get the local forecast and air quality, and once per new location to BigDataCloud to show the city name. Nothing is requested while the weather card is turned off. The user can turn location off in settings and type a city instead.
 ```
 
-### search
+The `search` permission was removed from the manifest on 2026-11-12 because `chrome.search` is never called (the
+search bar builds engine URLs itself). If the search bar is changed to use `chrome.search.query` (see SUBMIT.md
+"Known review risks"), add `search` back to the manifest and paste this answer for it:
 
 ```
 Lets the search bar send the user's query to Chrome's default search engine through the chrome.search API, so web searches from the new tab respect the user's search settings.
 ```
-
-Warning: in the code as of 2026-11-12 the `search` permission is declared but `chrome.search` is never called (the
-search bar builds engine URLs itself). Reviewers reject unused permissions ("Purple Potassium"). Before submitting,
-either the search bar uses `chrome.search.query` (recommended, see SUBMIT.md "Known review risks") or `search` is
-removed from the manifest and this answer is deleted.
 
 ### Host permission: https://www.google.com/complete/search*
 

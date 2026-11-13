@@ -17,13 +17,20 @@
     const $ = (s) => document.querySelector(s);
     const click = (s) => { const el = $(s); if (el) { el.click(); return true; } return false; };
     const focus = (s) => { const el = $(s); if (el) { el.focus(); if (el.select) el.select(); return true; } return false; };
-    // Folded columns open first, so their controls exist.
-    const openCol = (side) => {
-        const cls = side === "left" ? "fold-todo" : "fold-bookmarks";
-        if (document.documentElement.classList.contains(cls) && window.LemonLayout) window.LemonLayout.toggle(side);
-    };
+    // Folded columns open first, so their controls exist. The fold class goes only after the setting is saved, so wait
+    // for it (a field inside a folded column is display: none and cannot take focus).
+    const openCol = (side) => new Promise((done) => {
+        const cls = side === "left" ? "fold-todo" : "fold-bookmarks", root = document.documentElement;
+        if (!root.classList.contains(cls) || !window.LemonLayout) return done();
+        const end = () => { mo.disconnect(); clearTimeout(timer); done(); };
+        const mo = new MutationObserver(() => { if (!root.classList.contains(cls)) end(); });
+        const timer = setTimeout(end, 1000);
+        mo.observe(root, { attributes: true, attributeFilter: ["class"] });
+        window.LemonLayout.toggle(side);
+    });
+    const inRight = (fn) => { openCol("right").then(fn); return true; };
 
-    let sheet = null, daysShown = false;
+    let sheet = null;
     function toggleHelp(force) {
         const show = force !== undefined ? force : !sheet;
         if (!show) { if (sheet) { sheet.remove(); sheet = null; } return; }
@@ -51,18 +58,18 @@
         const act = {
             "s": () => focus(".sb-input"),
             "e": () => click(".sb-engine"),
-            "b": () => { openCol("right"); return focus("#right-col .bm-search"); },
-            "a": () => { openCol("right"); return click("#right-col .bm-fab"); },
-            "g": () => { openCol("right"); return click("#right-col .bm-apps-head"); },
+            "b": () => inRight(() => focus("#right-col .bm-search")),
+            "a": () => inRight(() => click("#right-col .bm-fab")),
+            "g": () => inRight(() => click("#right-col .bm-apps-head")),
             "1": () => { window.LemonLayout && window.LemonLayout.toggle("left"); return true; },
             "2": () => { window.LemonLayout && window.LemonLayout.toggle("right"); return true; },
             "w": () => visible(".dlw-close") ? click(".dlw-close") : (click(".dlb-more") || click("#dlWeather")),
-            "h": () => { daysShown = !daysShown; return click(daysShown ? ".dlb-jump-d" : ".dlb-jump-h"); },
+            // The strip marks the section in view (aria-current on its jump button): go to the other one.
+            "h": () => { const on = $(".dlb-jump[aria-current]"); return click(on && on.dataset.sec === "h" ? ".dlb-jump-d" : ".dlb-jump-h"); },
             ",": () => {
                 const col = $("#right-col");
                 if (col && col.classList.contains("st-open")) return click("#right-col .st-back");
-                openCol("right");
-                return click("#right-col .bm-gear");
+                return inRight(() => click("#right-col .bm-gear"));
             },
             "?": () => { toggleHelp(); return true; },
             "[": () => { window.LemonLayout && window.LemonLayout.step("left", -1); return true; },

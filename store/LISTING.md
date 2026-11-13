@@ -15,10 +15,11 @@ Material Desk
 ## Short description (manifest `description`, max 132 characters)
 
 ```
-A calm new tab with a cookie clock, search, weather, to-dos and bookmarks, in Material You colors. Your data stays on your device.
+A calm Material You new tab: cookie clock, weather, to-do list and bookmarks, colored from your wallpaper.
 ```
 
-(130 characters.)
+(106 characters, the same as `extension/manifest.json`. It makes no "data stays on your device" claim: the weather and
+search suggestions send the place and the typed text to outside services, see the Privacy paragraph below.)
 
 ## Detailed description (dashboard field "Description")
 

@@ -1,8 +1,8 @@
 /*
  * Center column: the long search bar (#search-host) and the date pill style hook (#dlDate is filled by
  * cookie-clock.js). Search: pick the engine from the button on the left (setting `engine`), suggestions while typing
- * (setting `suggestions`; Google's or DuckDuckGo's suggest service), arrow keys to pick one, Enter to go. Text that
- * looks like an address opens it directly.
+ * (setting `suggestions`; only with Google or DuckDuckGo, from that engine's own suggest service), arrow keys to pick
+ * one, Enter to go. Text that looks like an address opens it directly.
  */
 (function () {
     const ENGINES = {
@@ -20,20 +20,23 @@
 
     // An address: a scheme (https://, chrome://), localhost, an IPv4 address, or a host whose last part is letters.
     // So "3.14", "v1.2.3" and "README.md" are searched, not opened. A bare "name.ext" with a common file extension
-    // also counts as a search.
+    // (no path, no port) also counts as a search.
     const FILE_EXT = /\.(md|txt|js|mjs|ts|tsx|jsx|py|sh|json|css|html?|xml|ya?ml|toml|ini|cfg|conf|log|csv|tsv|pdf|docx?|xlsx?|pptx?|png|jpe?g|gif|svg|webp|mp3|mp4|mkv|mov|wav|zip|tar|gz|7z|exe|deb|rpm|c|h|cpp|hpp|rs|go|java|kt|rb|php|lua|qml|lock)$/i;
     const hasScheme = (t) => /^[a-z][\w+.-]*:\/\//i.test(t);
     const looksLikeUrl = (t) => !/\s/.test(t) && (hasScheme(t) || /^localhost(:\d+)?(\/\S*)?$/i.test(t) ||
         /^\d{1,3}(\.\d{1,3}){3}(:\d+)?(\/\S*)?$/.test(t) ||
-        (/^(?:[a-z0-9-]+\.)+[a-z]{2,}(:\d+)?(\/\S*)?$/i.test(t) && !FILE_EXT.test(t)));
+        (/^(?:[a-z0-9-]+\.)+[a-z]{2,}(:\d+)?(\/\S*)?$/i.test(t) && (/[/:]/.test(t) || !FILE_EXT.test(t))));
+    // Script-carrying schemes never open from the search bar: "javascript://..." is searched as text.
+    const safeUrl = (u) => { try { return !/^(javascript|data|vbscript|blob|filesystem):$/i.test(new URL(u).protocol); } catch (e) { return false; } };
     const COLS = 3;   // engine menu columns (styles/center.css)
     const engine = () => ENGINES[Lemon.settings.get().engine] || ENGINES.google;
 
     function go(text, newTab) {
         const t = text.trim();
         if (!t) return;
-        const url = looksLikeUrl(t) ? (hasScheme(t) ? t : (/^(localhost|\d{1,3}(\.\d{1,3}){3})(:|\/|$)/i.test(t) ? "http://" : "https://") + t)
+        let url = looksLikeUrl(t) ? (hasScheme(t) ? t : (/^(localhost|\d{1,3}(\.\d{1,3}){3})(:|\/|$)/i.test(t) ? "http://" : "https://") + t)
             : engine().url + encodeURIComponent(t);
+        if (!safeUrl(url)) url = engine().url + encodeURIComponent(t);
         const tabs = window.chrome && chrome.tabs;
         if (newTab && tabs) tabs.create({ url });
         // chrome://, file:// and the like are blocked from a page's location; the tabs API may open them.
@@ -41,8 +44,11 @@
         else location.href = url;
     }
 
+    // Only Google and DuckDuckGo give suggestions, each for its own engine: what is typed for Bing, Brave, Wikipedia or
+    // YouTube is never sent to another company.
+    const suggestsFor = (s) => s.suggestions && (s.engine === "google" || s.engine === "duckduckgo" || !ENGINES[s.engine]);
     async function suggest(q) {
-        if (!Lemon.settings.get().suggestions || q.length < 1 || looksLikeUrl(q)) return [];
+        if (!suggestsFor(Lemon.settings.get()) || q.length < 1 || looksLikeUrl(q)) return [];
         try {
             if (Lemon.settings.get().engine === "duckduckgo") {
                 const r = await (await fetch("https://duckduckgo.com/ac/?type=list&q=" + encodeURIComponent(q))).json();
@@ -109,24 +115,25 @@
                 input.value = active >= 0 ? items[active] : typed;
                 showList();
             } else if (e.key === "Escape") {
+                seq++; // a reply still on its way must not open the list again
                 if (!list.hidden || !engMenu.hidden) {
                     e.preventDefault();
                     // Back to what was typed, not the highlighted suggestion.
                     if (!list.hidden && active >= 0) input.value = typed;
                     closeAll();
                 }
-                else input.value = "";
+                else { input.value = ""; typed = ""; items = []; }
             }
         });
         form.addEventListener("submit", (e) => { e.preventDefault(); go(input.value); });
         list.addEventListener("mousedown", (e) => {
             const li = e.target.closest("li");
-            if (!li) return;
+            if (!li || e.button === 2) return;
             e.preventDefault();
-            go(items[+li.dataset.i], e.button === 1 || e.ctrlKey);
+            go(items[+li.dataset.i], e.button === 1 || e.ctrlKey || e.metaKey);
         });
         input.addEventListener("blur", () => setTimeout(() => { list.hidden = true; }, 120));
-        input.addEventListener("focus", () => { if (items.length && input.value) list.hidden = false; });
+        input.addEventListener("focus", () => { if (items.length && input.value && suggestsFor(Lemon.settings.get())) list.hidden = false; });
 
         engMenu.innerHTML = Object.entries(ENGINES).map(([k, e]) =>
             `<li role="option" data-k="${k}" tabindex="-1"><i>${COOKIE}<b>${e.mark}</b></i><span>${e.name}</span></li>`).join("");
@@ -162,7 +169,11 @@
         document.addEventListener("click", (e) => { if (!host.contains(e.target)) closeAll(); });
 
         paintEngine();
-        Lemon.settings.onChange((s, patch) => { if ("engine" in patch) paintEngine(); });
+        Lemon.settings.onChange((s, patch) => {
+            if ("engine" in patch) paintEngine();
+            // Suggestions turned off (or an engine without them): drop what was shown and any reply on its way.
+            if (("suggestions" in patch || "engine" in patch) && !suggestsFor(s)) { seq++; items = []; active = -1; list.hidden = true; }
+        });
     }
 
     function start() {

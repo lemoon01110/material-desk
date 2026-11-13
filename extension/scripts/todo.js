@@ -42,7 +42,10 @@
     }
     // Ids end up in HTML attributes and selectors: only letters, digits, "_" and "-" are kept; anything else (for
     // example from an imported file) gets a fresh id.
-    const safeId = (v, fresh = () => uid()) => (/^[\w-]{1,64}$/.test(String(v)) ? String(v) : fresh());
+    // Missing ids (undefined, null) get a fresh one too, not the text "undefined".
+    const safeId = (v, fresh = () => uid()) => ((typeof v === "string" || typeof v === "number") && /^[\w-]{1,64}$/.test(String(v)) ? String(v) : fresh());
+    // A fresh id when one is already taken in the same group (sections of a list, subtasks of an item).
+    const uniqueIds = (arr) => { const seen = new Set(); arr.forEach((x) => { if (seen.has(x.id)) x.id = uid(); seen.add(x.id); }); return arr; };
     const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const clone = (o) => JSON.parse(JSON.stringify(o));
     // Without a root, look in the column and then in the date pop-out (it lives on <body>, see "date pop-out").
@@ -196,7 +199,7 @@
             else if (w.startsWith("weekday")) out.repeat = "weekdays";
             else if (w === "week") out.repeat = "weekly";
             else if (w === "month") out.repeat = "monthly";
-            else { out.repeat = "weekly"; out.due = ymd(nextWeekday(WD[w], true)); }
+            else { out.repeat = "weekly"; out.due = ymd(nextWeekday(WD[w], true)); weekdayToday = out.due === todayS(); }
         });
         const t = todayD();
         const rules = [
@@ -288,8 +291,8 @@
             s.lists.push({
                 id: String(l.id), name: String(l.name || "Untitled").slice(0, 40),
                 color: ROLES.includes(l.color) ? l.color : "secondary",
-                sections: (Array.isArray(l.sections) ? l.sections : []).filter((x) => x && x.id)
-                    .map((x) => ({ id: safeId(x.id), name: String(x.name || "Section").slice(0, 40), collapsed: !!x.collapsed })),
+                sections: uniqueIds((Array.isArray(l.sections) ? l.sections : []).filter((x) => x && x.id)
+                    .map((x) => ({ id: safeId(x.id), name: String(x.name || "Section").slice(0, 40), collapsed: !!x.collapsed }))),
             });
         }
         if (!seen.has("inbox")) s.lists.unshift({ id: "inbox", name: "Inbox", color: "secondary", sections: [] });
@@ -305,12 +308,12 @@
                 id, title: String(it.title == null ? "" : it.title).slice(0, 500),
                 notes: String(it.notes == null ? "" : it.notes).slice(0, 20000), listId: list.id,
                 sectionId: list.sections.some((x) => x.id === it.sectionId) ? it.sectionId : null,
-                due, time: due && /^\d{2}:\d{2}$/.test(it.time) ? it.time : null,
+                due, time: due && /^([01]\d|2[0-3]):[0-5]\d$/.test(it.time) ? it.time : null,
                 priority: [1, 2, 3].includes(it.priority) ? it.priority : 0,
                 tags: Array.isArray(it.tags) ? [...new Set(it.tags.map(cleanTag).filter(Boolean))] : [],
                 repeat: REPEATS.includes(it.repeat) ? it.repeat : null,
-                subtasks: (Array.isArray(it.subtasks) ? it.subtasks : []).filter((x) => x && typeof x === "object")
-                    .map((x) => ({ id: safeId(x.id), title: String(x.title == null ? "" : x.title).slice(0, 300), done: !!x.done })),
+                subtasks: uniqueIds((Array.isArray(it.subtasks) ? it.subtasks : []).filter((x) => x && typeof x === "object")
+                    .map((x) => ({ id: safeId(x.id), title: String(x.title == null ? "" : x.title).slice(0, 300), done: !!x.done }))),
                 done: !!it.done, completedAt: it.done ? Number(it.completedAt) || Date.now() : null,
                 createdAt: Number(it.createdAt) || Date.now(), order: Number.isFinite(it.order) ? it.order : i,
             });
@@ -328,7 +331,7 @@
     const listById = (id) => S.lists.find((l) => l.id === id) || S.lists[0];
     const listIdx = (id) => S.lists.findIndex((l) => l.id === id);
     const tagRole = (t) => {
-        if (S.tagColors[t]) return S.tagColors[t];
+        if (Object.prototype.hasOwnProperty.call(S.tagColors, t)) return S.tagColors[t];
         let h = 0;
         for (const c of t) h = (h * 31 + c.charCodeAt(0)) >>> 0;
         return TAG_ROLES[h % TAG_ROLES.length];
@@ -351,7 +354,9 @@
     const focusItem = () => (S.focusId ? S.items.find((i) => i.id === S.focusId && !i.done) : null);
 
     // ---- saving and syncing --------------------------------------------------------------------------------------
-    let saveTimer = null, pendingRemote = null, pendingBase = null;
+    // synced: a copy of the state this tab last saved or took from another tab, so local changes still waiting to be
+    // saved can be told apart from the other tab's.
+    let saveTimer = null, pendingRemote = null, pendingBase = null, synced = null;
     // savedAt stamps of this tab's own recent saves. A change carrying our tab id but another stamp (for example a
     // Settings import of a file exported from this tab) is applied, not ignored.
     const ownSaves = [];
@@ -364,7 +369,16 @@
         S.savedAt = Date.now();
         ownSaves.push(S.savedAt);
         if (ownSaves.length > 30) ownSaves.shift();
-        Promise.resolve(Lemon.store.set(KEY, S)).catch(() => snack("Could not save the to-do list. Storage is full or blocked."));
+        let out = S;
+        if (pendingRemote) {
+            // Another tab's copy waits until the user stops typing here: save it with this tab's changes laid over
+            // it, so the other tab's change is not overwritten. S stays as it is until the field loses focus.
+            out = normalize(pendingRemote);
+            mergeLocal(out, pendingBase);
+            out = Object.assign(clone(out), { writer: TAB, savedAt: S.savedAt });
+            pendingRemote = out;
+        } else synced = clone(S);
+        Promise.resolve(Lemon.store.set(KEY, out)).catch(() => snack("Could not save the to-do list. Storage is full or blocked."));
     }
     const commit = () => { save(); render(); };
     window.addEventListener("pagehide", () => { if (saveTimer) flush(); });
@@ -397,15 +411,17 @@
     }
     function applyRemote(value) {
         if (typingInCol()) {
-            if (!pendingRemote) pendingBase = clone(S);
+            if (!pendingRemote) pendingBase = synced || clone(S);
             pendingRemote = value;
             return;
         }
-        const base = pendingRemote === value ? pendingBase : null;
+        // Local changes not saved yet (typed, or made in the last 250 ms) are laid over the other tab's copy.
+        const base = pendingRemote === value ? pendingBase : saveTimer ? synced : null;
         pendingRemote = null;
         pendingBase = null;
         const view = S ? S.view : "today";
         const next = normalize(value);
+        synced = clone(next);
         const mine = base ? mergeLocal(next, base) : false;
         S = mine ? normalize(next) : next;
         if (mine) save();
@@ -560,7 +576,7 @@
         const over = open.some(isOverdue);
         $(".td-views").innerHTML = SMART.map(([v, label]) => `<button type="button" class="td-seg" data-act="view" data-v="${v}" data-k="v:${v}" aria-pressed="${S.view === v}">${label}${
             n[v] && v !== "done" ? `<span class="td-n${v === "today" && over ? " is-over" : ""}">${n[v]}</span>` : ""}</button>`).join("");
-        const counts = {};
+        const counts = Object.create(null);
         open.forEach((i) => (counts[i.listId] = (counts[i.listId] || 0) + 1));
         $(".td-lists").innerHTML = S.lists.map((l) => `<button type="button" class="td-lchip" data-act="view" data-v="list:${l.id}" data-k="v:list:${l.id}"
             aria-pressed="${S.view === "list:" + l.id}" style="${roleVars(l.color)}"><span class="td-dot"></span>${esc(l.name)}${
@@ -1072,7 +1088,7 @@
         // The sheet covers the column: keep focus and the accessibility tree inside it (the snackbar stays live).
         for (const el of [$(".td-head"), $(".td-top"), body]) el.inert = ui.sheet;
         if (!ui.sheet) { sheet.innerHTML = ""; return; }
-        const counts = {};
+        const counts = Object.create(null);
         S.items.forEach((i) => { if (!i.done) counts[i.listId] = (counts[i.listId] || 0) + 1; });
         const tagCounts = new Map();
         S.items.forEach((i) => i.tags.forEach((t) => tagCounts.set(t, (tagCounts.get(t) || 0) + (i.done ? 0 : 1))));
@@ -1328,7 +1344,11 @@
     function applyTimeText(it, text) {
         text = text.trim();
         if (!text) { it.time = null; return true; }
-        const p = parseQuick(/^\d{1,2}$/.test(text) ? text + (+text < 7 || +text === 12 ? "pm" : +text > 12 ? ":00" : "am") : text, [], { keepDue: true, loose: true });
+        // A time without am/pm: 1 to 6 and 12 mean the afternoon, 7 to 11 the morning, 0 and 13 to 23 are 24-hour
+        // ("5" and "5:30" are both PM, "0" is midnight).
+        const m = /^(\d{1,2})(?::([0-5]\d))?$/.exec(text);
+        if (m) { const h = +m[1]; text = `${h}:${m[2] || "00"}${h === 0 || h > 12 ? "" : h < 7 || h === 12 ? "pm" : "am"}`; }
+        const p = parseQuick(text, [], { keepDue: true, loose: true });
         if (!p.time) return false;
         it.time = p.time;
         if (!it.due) it.due = todayS();
@@ -1377,6 +1397,7 @@
             case "sub-toggle": if (it) { const s = it.subtasks.find((x) => x.id === el.closest(".td-sub").dataset.sid); if (s) { s.done = !s.done; commit(); } } break;
             case "sub-del": if (it) {
                 const sid = el.closest(".td-sub").dataset.sid, i = it.subtasks.findIndex((x) => x.id === sid);
+                if (i < 0) break;
                 it.subtasks.splice(i, 1); commit();
                 const subs = $$(".td-sub-in");
                 (subs[Math.max(0, i - 1)] || subs[0]).focus();
@@ -1860,9 +1881,14 @@
             e.preventDefault();
             if (ui.search) closeSearch();
             if (ui.sheet) { ui.sheet = false; render(); }
-            addIn.focus();
-        } else if (e.key === "/") { e.preventDefault(); openSearch(); }
+            unfold(() => addIn.focus());
+        } else if (e.key === "/") { e.preventDefault(); unfold(openSearch); }
     });
+    // A folded column hides its fields: open it first (collapse.js follows the setting), then focus.
+    function unfold(then) {
+        if (!rootCls("fold-todo")) { then(); return; }
+        Promise.resolve(Lemon.settings.set({ todoCollapsed: false })).then(then, then);
+    }
 
     // ---- reorder (keyboard and pointer) --------------------------------------------------------------------------
     // Renumber the whole list in the order on screen. Open items of the list that are not on screen (the pinned Focus
@@ -2016,7 +2042,17 @@
     function scheduleMidnight() {
         renderedDay = todayS();
         clearTimeout(midnightT);
-        const now = new Date(), next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
+        const now = new Date();
+        let next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
+        // Also when a to-do due today at a time becomes overdue (a minute after its time, see isOverdue).
+        const t = todayS(), mins = now.getHours() * 60 + now.getMinutes();
+        for (const i of S ? S.items : []) {
+            if (i.done || i.due !== t || !i.time) continue;
+            const [h, m] = i.time.split(":").map(Number);
+            if (h * 60 + m < mins) continue;
+            const at = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m + 1, 1);
+            if (at < next) next = at;
+        }
         midnightT = setTimeout(() => { if (!typingInCol()) render(); else scheduleMidnight(); }, next - now);
     }
     document.addEventListener("visibilitychange", () => { if (!document.hidden && S && renderedDay !== todayS() && !typingInCol()) render(); });
@@ -2089,6 +2125,7 @@
         const dev = location.hostname === "127.0.0.1" ? new URLSearchParams(location.search).get("seed") : null;
         if (dev !== null) raw = seedState(dev);
         S = normalize(raw);
+        synced = clone(S);
         render();
         if (dev !== null) flush();
     })();

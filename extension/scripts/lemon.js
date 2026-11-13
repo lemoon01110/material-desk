@@ -95,18 +95,47 @@
     let current = { ...DEFAULTS };
     try { Object.assign(current, JSON.parse(localStorage.getItem("lemon:settingsCache") || "{}")); } catch (e) { /* */ }
     const listeners = [];
+    const cacheSettings = () => { try { localStorage.setItem("lemon:settingsCache", JSON.stringify(current)); } catch (e) { /* */ } };
+    const tell = (patch) => listeners.forEach((cb) => { try { cb({ ...current }, patch); } catch (e) { console.error(e); } });
+    const mine = new Set();   // settings this tab wrote, so their storage event is not taken for another tab's change
     const settings = {
         defaults: DEFAULTS,
         get: () => ({ ...current }),
         async set(patch) {
+            const before = current;
             current = { ...current, ...patch };
-            try { localStorage.setItem("lemon:settingsCache", JSON.stringify(current)); } catch (e) { /* */ }
-            await store.set("settings", current);
+            cacheSettings();
+            const sent = JSON.stringify(current);
+            mine.add(sent);
+            try { await store.set("settings", current); }
+            catch (e) {
+                // Not saved: take the patch back, so this tab, its cache and the storage agree.
+                mine.delete(sent);
+                current = { ...current };
+                for (const k of Object.keys(patch)) current[k] = before[k];
+                cacheSettings();
+                throw e;
+            }
             applySettings();
-            listeners.forEach((cb) => { try { cb({ ...current }, patch); } catch (e) { console.error(e); } });
+            tell(patch);
         },
         onChange(cb) { listeners.push(cb); },
     };
+    // Another tab changed a setting: follow it, so this tab's next change does not write its old copy back.
+    if (api.storage && api.storage.onChanged) {
+        api.storage.onChanged.addListener((changes, area) => {
+            if (area !== "local" || !changes.settings) return;
+            const raw = changes.settings.newValue, sent = JSON.stringify(raw);
+            if (mine.delete(sent)) return;
+            const next = { ...DEFAULTS, ...(raw && typeof raw === "object" ? raw : {}) }, patch = {};
+            for (const k of Object.keys(next)) if (JSON.stringify(next[k]) !== JSON.stringify(current[k])) patch[k] = next[k];
+            if (!Object.keys(patch).length) return;
+            current = next;
+            cacheSettings();
+            applySettings();
+            tell(patch);
+        });
+    }
     const ready = store.get("settings", {}).then((saved) => {
         current = { ...DEFAULTS, ...saved };
         try { localStorage.setItem("lemon:settingsCache", JSON.stringify(current)); } catch (e) { /* */ }

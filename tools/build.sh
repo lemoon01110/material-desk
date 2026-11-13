@@ -10,9 +10,13 @@
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 mode=${1:?usage: tools/build.sh store|local [--install]}
+# Check the mode before anything is deleted: the output folder is named after it.
+case $mode in store|local) ;; *) echo "unknown mode $mode (use store or local)" >&2; exit 1 ;; esac
 dist="$root/dist/$mode"
 rm -rf "$dist"; mkdir -p "$dist"
 cp -r "$root/extension/." "$dist/"
+# The GPL-3.0 text and the third-party notices go into every package.
+cp "$root/LICENSE" "$root/NOTICE" "$dist/"
 case $mode in
 store)
     python3 -I - "$dist/manifest.json" <<'PY'
@@ -30,8 +34,15 @@ local)
     # shellcheck disable=SC1091
     [ -f "$root/tools/local.env" ] && . "$root/tools/local.env"
     cur=""
-    if [ -n "$MD_UPDATES_XML" ]; then
-        cur=$(grep -o "updatecheck[^>]*version='[^']*'" "$MD_UPDATES_XML" 2>/dev/null | grep -o "version='[^']*'" | cut -d"'" -f2 || true)
+    if [ -n "$MD_UPDATES_XML" ] && [ -f "$MD_UPDATES_XML" ]; then
+        # The updatecheck entry's version, in single or double quotes. A file without one stops the build, so
+        # --install never packs a version Chrome would not apply.
+        cur=$(python3 -I -c 'import re, sys
+m = re.search(r"<updatecheck\b[^>]*\bversion\s*=\s*([\x27\x22])([^\x27\x22]+)\1", open(sys.argv[1]).read())
+print(m.group(2) if m else "")' "$MD_UPDATES_XML")
+        [ -n "$cur" ] || { echo "no updatecheck version in $MD_UPDATES_XML" >&2; exit 1; }
+    elif [ -n "$MD_UPDATES_XML" ]; then
+        echo "note: $MD_UPDATES_XML does not exist yet, using the version in manifest.json" >&2
     fi
     python3 -I - "$dist/manifest.json" "$cur" "$MD_UPDATE_URL" <<'PY'
 import json, sys

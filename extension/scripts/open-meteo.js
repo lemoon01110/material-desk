@@ -62,6 +62,7 @@
         : code <= 48 ? "fog" : (code >= 71 && code <= 77) || code === 85 || code === 86 ? "snow"
         : code >= 95 ? "storm" : "rain";
 
+    const NAME_KEY = "dlPlaceName";   // localStorage cache of the last coordinates' place name
     // Every request gives up after 10 seconds (a held-open request left "Getting the weather…" up for good).
     const get = (url) => fetch(url, { signal: AbortSignal.timeout(10000) });
     const json = async (url) => {
@@ -73,13 +74,20 @@
     async function place(location) {
         const m = /^\s*(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)\s*$/.exec(location || "");
         if (m) {
-            // City name for the coordinates (BigDataCloud's free client-side lookup), else ipinfo's guess.
-            let name;
-            try {
-                const r = await json("https://api.bigdatacloud.net/data/reverse-geocode-client?" +
-                    `latitude=${m[1]}&longitude=${m[3]}&localityLanguage=en`);
-                name = r.city || r.locality;
-            } catch (e) { /* none */ }
+            // City name for the coordinates (BigDataCloud's free client-side lookup), else ipinfo's guess. Kept in
+            // localStorage per coordinates, so the same coordinates are looked up once, not on every refresh.
+            let name, saved = null;
+            const at = `${m[1]},${m[3]}`;
+            try { saved = JSON.parse(localStorage.getItem(NAME_KEY)); } catch (e) { /* none */ }
+            if (saved && saved.at === at && typeof saved.name === "string") name = saved.name;
+            if (!name) {
+                try {
+                    const r = await json("https://api.bigdatacloud.net/data/reverse-geocode-client?" +
+                        `latitude=${m[1]}&longitude=${m[3]}&localityLanguage=en`);
+                    name = r.city || r.locality;
+                    if (name) localStorage.setItem(NAME_KEY, JSON.stringify({ at, name: String(name) }));
+                } catch (e) { /* none */ }
+            }
             if (!name) name = window.weatherCity;
             if (!name) {
                 try { name = (await json("https://ipinfo.io/json/")).city; } catch (e) { /* none */ }
@@ -87,12 +95,20 @@
             return { lat: m[1], lon: m[3], name: name || "Here" };
         }
         if (location && location !== "auto:ip") {
-            const r = await json("https://geocoding-api.open-meteo.com/v1/search?count=1&name=" +
-                encodeURIComponent(location.split(",")[0].trim()));
-            const hit = r.results && r.results[0];
+            // "Springfield, Illinois" or "Paris, FR": the name is searched, the part after the comma picks the hit
+            // (state, region or country), else the best match is used.
+            const [city, ...rest] = location.split(",");
+            const qual = rest.join(",").trim().toLowerCase();
+            const r = await json(`https://geocoding-api.open-meteo.com/v1/search?count=${qual ? 10 : 1}&name=` +
+                encodeURIComponent(city.trim()));
+            const hits = Array.isArray(r.results) ? r.results : [];
+            const hit = (qual && hits.find((h) => [h.admin1, h.admin2, h.country, h.country_code]
+                .some((x) => typeof x === "string" && x.toLowerCase() === qual))) || hits[0];
             if (hit) return { lat: hit.latitude, lon: hit.longitude, name: hit.name };
+            throw new Error("Place not found");   // a typo should say so, not quietly show the internet address's city
         }
         const ip = await json("https://ipinfo.io/json/");
+        if (typeof ip.loc !== "string") throw new Error("No location");
         const [lat, lon] = ip.loc.split(",");
         return { lat, lon, name: ip.city || "Here" };
     }
@@ -120,8 +136,8 @@
     window.weatherText = (code, isDay) => code === 0 && isDay ? "Sunny" : (CODES[code] || [0, "Cloudy"])[1];
     window.openMeteoForecast = async function (location) {
         const p = await place(location);
-        // Coordinates go into request URLs: numbers only.
-        p.lat = +p.lat; p.lon = +p.lon;
+        // Coordinates go into request URLs: numbers only, rounded to 3 decimals (about 100 m) whatever their source.
+        p.lat = Math.round(+p.lat * 1000) / 1000; p.lon = Math.round(+p.lon * 1000) / 1000;
         if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) throw new Error("Place not found");
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}` +
             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,is_day,wind_speed_10m," +
@@ -133,6 +149,8 @@
         const [d, aq] = await Promise.all([json(url), air(p)]);
         if (!d.current || !d.hourly || !d.daily || !Array.isArray(d.hourly.time) || !Array.isArray(d.daily.time)) throw new Error(d.reason || "No forecast");
         const c = d.current, h = d.hourly, dl = d.daily;
+        const T = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, D = /^\d{4}-\d{2}-\d{2}$/;
+        if (!T.test(String(c.time))) throw new Error("Unexpected weather data");   // used as a string below
         // The hour the current conditions fall in (the last hourly time not after now).
         let at = 0;
         h.time.forEach((t, i) => { if (t <= c.time) at = i; });
@@ -154,7 +172,6 @@
         });
         // Everything from the network is checked before it reaches the page (it is rendered into HTML): times and
         // dates must look like Open-Meteo's ISO strings, numbers must be finite numbers, the place is plain text.
-        const T = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, D = /^\d{4}-\d{2}-\d{2}$/;
         const n = (x) => (x == null || x === "" || !Number.isFinite(+x) ? null : +x);
         for (const hr of hours) for (const k of ["temp", "code", "isDay", "rain", "mm"]) hr[k] = n(hr[k]) ?? 0;
         for (const d of days) {
@@ -164,13 +181,13 @@
         }
         const goodHours = hours.filter((hr) => T.test(String(hr.time)));
         const goodDays = days.filter((d) => D.test(String(d.date)));
-        if (!T.test(String(c.time)) || !goodDays.length) throw new Error("Unexpected weather data");
+        if (!goodHours.length || !goodDays.length) throw new Error("Unexpected weather data");
         hours.length = 0; hours.push(...goodHours);
         days.length = 0; days.push(...goodDays);
         for (const k of Object.keys(c)) if (k !== "time") c[k] = n(c[k]);
         p.name = String(p.name == null ? "" : p.name).replace(/[<>&"]/g, "").slice(0, 80);
         return {
-            v: 2, place: p.name, fetched: Date.now(), time: c.time,
+            v: 2, place: p.name, fetched: Date.now(), time: c.time, offset: n(d.utc_offset_seconds),
             temp: c.temperature_2m, feels: c.apparent_temperature, humidity: c.relative_humidity_2m,
             dew: c.dew_point_2m, wind: c.wind_speed_10m, windDir: c.wind_direction_10m, gusts: c.wind_gusts_10m,
             cloud: c.cloud_cover, pressure: c.pressure_msl,

@@ -103,7 +103,9 @@ Lemon.look.onChange(callback)
 - The global is called `Lemon` and several storage keys start with `lemon` for historical reasons (the project's
   first name). Do not rename them: existing installs keep their data under those names.
 - Data: chrome.storage.local only (never localStorage for user data; localStorage only holds caches). Keys:
-  `settings`, `todo`, `bookmarksUi`, `wallpaper`, `myntImported`. The weather cache is localStorage `dlWeather2`.
+  `settings`, `todo`, `bookmarksUi`, `wallpaper`, `myntImported`. The weather cache is localStorage `dlWeather2`, the
+  place name of the last GPS coordinates `dlPlaceName`. Settings changed in another tab are followed through
+  `chrome.storage.onChanged`, so a tab never writes its old copy back.
 - Scripts are classic scripts at the end of body (no modules, no build step, no network except the hosts in
   manifest.json). Wrap your code in an IIFE; mount into your host element; expose nothing global unless listed here.
 - Page scale: the page is designed at 100% in CSS px at 1920x1080 and checked at 1366x768. A managed look may set
@@ -115,13 +117,17 @@ Lemon.look.onChange(callback)
 units (F/C, default from the browser's region), useGPS + location (text, empty means "by internet address"),
 engine (google/duckduckgo/bing/brave/wikipedia/youtube), suggestions, showSeconds, weather, todo, bookmarks, apps,
 bookmarksView, panelOpacity (60 to 100), column fold and size keys. Plus the Wallpaper section, "Export data" /
-"Import data" (chrome.storage.local keys as one JSON file) and "Reset" (settings back to defaults only), and About.
+"Import data" (one JSON file with `settings`, `todo`, `bookmarksUi`, `myntImported` and a built-in `wallpaper`; an
+uploaded picture is not exported) and "Reset" (settings back to defaults only), and About.
 
 ## Weather
 
 Open-Meteo (forecast, geocoding, air quality; free, no key, CC BY 4.0, credited in the weather detail view and in
 Settings > About). The place: GPS when "Use my location" is on, else the typed place, else the internet address
-(ipinfo.io). Place names for GPS coordinates come from BigDataCloud's free client-side reverse geocoder.
+(ipinfo.io). Place names for GPS coordinates come from BigDataCloud's free client-side reverse geocoder, asked once
+per new location. A typed place may name its region or country after a comma ("Springfield, Illinois"); a typed place
+with no match shows "Can't find that place" instead of the internet address's weather. Every coordinate sent to
+Open-Meteo is rounded to 3 decimals. Nothing is requested while the Weather setting is off.
 
 ## Developing and checking your work
 

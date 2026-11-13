@@ -95,13 +95,13 @@ footer a { margin: 0 8px; }
                 <td>When you use a typed city instead of your location</td>
                 <td>The city name you typed</td></tr>
             <tr><td><a href="https://www.bigdatacloud.com/privacy-and-cookie-policy">BigDataCloud</a></td>
-                <td>When your location is used, to show the city name</td>
-                <td>Latitude and longitude</td></tr>
+                <td>When your location is used, to show the city name (once for each new location)</td>
+                <td>Latitude and longitude, rounded to 3 decimals</td></tr>
             <tr><td><a href="https://ipinfo.io/privacy-policy">ipinfo.io</a></td>
                 <td>Only as a fallback, when no location or city is available, or the city name lookup fails</td>
                 <td>Nothing besides the request itself. It uses the request's IP address to estimate your city.</td></tr>
             <tr><td><a href="https://policies.google.com/privacy">Google</a> search suggestions</td>
-                <td>While you type in the search bar, if suggestions are on and Google (or an engine other than DuckDuckGo) is chosen</td>
+                <td>While you type in the search bar, if suggestions are on and Google is the chosen engine (Bing, Brave, Wikipedia and YouTube get no suggestions)</td>
                 <td>The text typed so far</td></tr>
             <tr><td><a href="https://duckduckgo.com/privacy">DuckDuckGo</a> search suggestions</td>
                 <td>While you type in the search bar, if suggestions are on and DuckDuckGo is chosen</td>
@@ -134,7 +134,7 @@ footer a { margin: 0 8px; }
         <li><strong>Stop location use:</strong> settings, turn off "Use my location" and type a city.</li>
         <li><strong>Stop search suggestions:</strong> settings, turn off search suggestions. Nothing you type is then sent until you run a search.</li>
         <li><strong>Hide the weather:</strong> settings, turn off the weather card. No weather or location requests are then made.</li>
-        <li><strong>Export your data:</strong> settings, "Export data" saves your settings and to-dos to a file on your computer.</li>
+        <li><strong>Export your data:</strong> settings, "Export data" saves your settings, to-dos, bookmark view and built-in wallpaper choice to a file on your computer. An uploaded picture is not included.</li>
         <li><strong>Reset settings:</strong> settings, "Reset settings" puts every setting back to its default. It keeps your to-dos and bookmarks.</li>
         <li><strong>Delete to-dos:</strong> delete them in the to-do column.</li>
         <li><strong>Delete everything:</strong> remove the extension (chrome://extensions, then Remove). Chrome then deletes all data Material Desk stored, including to-dos, settings, the weather cache and your uploaded wallpaper. Your Chrome bookmarks are Chrome's own and stay.</li>
@@ -149,7 +149,6 @@ footer a { margin: 0 8px; }
         <li><strong>Bookmarks:</strong> shows and edits your Chrome bookmarks in the bookmarks column.</li>
         <li><strong>Favicon:</strong> shows site icons from Chrome's icon cache next to bookmarks.</li>
         <li><strong>Geolocation:</strong> gets your location for the weather card when "Use my location" is on.</li>
-        <li><strong>Search:</strong> sends searches to Chrome's search engine settings.</li>
         <li><strong>Host access</strong> to the weather, geocoding and suggestion services listed above, and to no other websites.</li>
     </ul>
 </section>

@@ -151,22 +151,28 @@
     }
 
     // ---- actions ---------------------------------------------------------------------------------------------------
-    let busy = false;
+    let busy = false, wanted = null;
+    // Returns true when the wallpaper is in use. A pick while another one is running is done after it (the last wins).
     async function pickBuiltin(id) {
-        if (busy) return;
+        if (busy) { wanted = id; return false; }
         const w = look.wallpaper();
-        if (w.id === id && w.colors && w.colors.primary) return;
+        if (w.id === id && w.colors && w.colors.primary) return true;
         busy = true;
         say("Making colors from the wallpaper…");
+        let ok = false;
         try {
             const colors = await schemeFrom(await loadImage(`wallpapers/${id}.svg`));
             await look.set({ id, dim: w.dim, colors });
             say("");
+            ok = true;
         } catch (e) { say("Could not use that wallpaper: " + (e.message || e), true); }
         busy = false;
+        if (wanted) { const next = wanted; wanted = null; return pickBuiltin(next); }
+        return ok;
     }
     async function upload(f) {
         if (busy || !f) return;
+        wanted = null;
         if (f.type && !f.type.startsWith("image/")) { say(`${f.name} is not a picture.`, true); return; }
         busy = true;
         say("Making colors from your picture…");
@@ -178,10 +184,8 @@
         busy = false;
     }
     async function removeCustom() {
-        const d = look.defaultWallpaper;
-        busy = false;
-        await pickBuiltin(d.id);
-        say("Your picture was removed.");
+        if (busy) return;   // an upload is still running: removing now could race its save
+        if (await pickBuiltin(look.defaultWallpaper.id)) say("Your picture was removed.");
     }
 
     host.addEventListener("click", (e) => {
@@ -199,7 +203,9 @@
         const all = [...host.querySelectorAll(".st-wp-tile[role=radio]")].filter((b) => !b.hidden);
         const next = all[(all.indexOf(tile) + step + all.length) % all.length];
         next.focus();
-        if (next.dataset.id !== "custom") pickBuiltin(next.dataset.id);
+        // While your own picture is in use, arrows only move the focus: picking a built-in deletes the picture, so
+        // that takes Enter, Space or a click.
+        if (next.dataset.id !== "custom" && look.wallpaper().id !== "custom") pickBuiltin(next.dataset.id);
     });
     file.addEventListener("change", () => { const f = file.files && file.files[0]; file.value = ""; upload(f); });
 
