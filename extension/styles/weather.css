@@ -201,7 +201,7 @@
     padding-block: var(--mag-up, 22px) var(--mag-down, 8px); pointer-events: none;
     display: flex; align-items: center; gap: var(--ig);
     margin: calc(-1 * var(--mag-up, 22px)) 0 calc(var(--vb) - var(--mag-down, 8px));
-    padding: 0 calc(var(--fw) + 8px);
+    padding-inline: calc(var(--fw) + 8px);   /* not the padding shorthand: that would wipe the room above and below */
     overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain;
     user-select: none; -webkit-user-select: none;
 }
