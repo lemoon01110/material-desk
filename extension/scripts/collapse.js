@@ -57,7 +57,10 @@
         const col = document.getElementById(s.col);
         const el = Lemon.settings.get()[s.fold] ? col.querySelector(".fold-rail") : col;
         const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
-        return { el, rect: { x: r.left, y: r.top, w: r.width, h: r.height }, radius: cs.borderRadius,
+        // The page may run zoomed (html { zoom }, a managed look at 0.91): measured boxes come in screen px, while
+        // the ghost's left, top, width and height are page px that the zoom scales again. So back to page px.
+        const z = parseFloat(getComputedStyle(root).zoom) || 1;
+        return { el, rect: { x: r.left / z, y: r.top / z, w: r.width / z, h: r.height / z }, radius: cs.borderRadius,
             bg: cs.backgroundColor, shadow: cs.boxShadow };
     }
     let morphing = null;
