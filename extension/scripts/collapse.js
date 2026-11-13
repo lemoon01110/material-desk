@@ -45,8 +45,58 @@
 
     // Full: the whole page, one step beyond half.
     const ORDER = ["fold", "normal", "wide", "full"];
+    // ---- The size change, animated (owner 2026-11-12: "clicking the title to collapse has no animation"). Folding
+    // hides the column's contents at once and wide or full move it out of the grid, so neither can be a CSS
+    // transition. Instead a stand-in panel (a "ghost" with the panel's own color, corners and shadow) grows or
+    // shrinks from where the column was to where it lands: into the folded icon, out of it, or to half or the whole
+    // page. The real column waits hidden under it and fades in when it arrives.
+    const EASE = "cubic-bezier(0.2, 0.9, 0.25, 1)", MORPH_MS = 340;
+    const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // What is on screen for a column: the folded icon, or the panel itself.
+    function lookOf(s) {
+        const col = document.getElementById(s.col);
+        const el = Lemon.settings.get()[s.fold] ? col.querySelector(".fold-rail") : col;
+        const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+        return { el, rect: { x: r.left, y: r.top, w: r.width, h: r.height }, radius: cs.borderRadius,
+            bg: cs.backgroundColor, shadow: cs.boxShadow };
+    }
+    let morphing = null;
+    async function morph(s, change, from) {
+        const col = document.getElementById(s.col);
+        if (!window.__lemonSettled || reduced() || !col || !shown(s)) return change();
+        if (morphing) morphing.finish();
+        const a = from || lookOf(s);
+        root.classList.add("fold-morphing");          // no CSS width transition: the ghost does the moving
+        const done = await change();
+        const b = lookOf(s);
+        if (Math.abs(a.rect.w - b.rect.w) < 2 && Math.abs(a.rect.h - b.rect.h) < 2 && Math.abs(a.rect.x - b.rect.x) < 2) {
+            root.classList.remove("fold-morphing"); return done;
+        }
+        const ghost = document.createElement("div");
+        ghost.className = "fold-ghost";
+        Object.assign(ghost.style, { left: a.rect.x + "px", top: a.rect.y + "px", width: a.rect.w + "px", height: a.rect.h + "px" });
+        document.body.appendChild(ghost);
+        root.classList.add("morph-" + s.cls);        // the real column (or icon) stays hidden until the ghost lands
+        const frame = (k) => ({ left: k.rect.x + "px", top: k.rect.y + "px", width: k.rect.w + "px", height: k.rect.h + "px",
+            borderRadius: k.radius, backgroundColor: k.bg === "rgba(0, 0, 0, 0)" ? getComputedStyle(ghost).backgroundColor : k.bg,
+            boxShadow: k.shadow });
+        const anim = ghost.animate([frame(a), frame(b)], { duration: MORPH_MS, easing: EASE, fill: "forwards" });
+        const end = () => {
+            if (morphing !== run) return;
+            morphing = null;
+            root.classList.remove("morph-" + s.cls, "fold-morphing");
+            b.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: "ease-out" });
+            ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: "ease-out" }).onfinish = () => ghost.remove();
+        };
+        const run = { finish: () => { anim.finish(); } };
+        morphing = run;
+        anim.onfinish = end;
+        return done;
+    }
+
     // Returns the settings promise (keys.js waits for it before focusing inside a column that was folded).
-    function setState(s, to) {
+    function setState(s, to, from) { return morph(s, () => setStateNow(s, to), from); }
+    function setStateNow(s, to) {
         if (to === "fold") return Lemon.settings.set({ [s.fold]: true, [s.size]: "normal" });
         // Both columns may be wide at once.
         else if (to === "wide") return Lemon.settings.set({ [s.fold]: false, [s.size]: "wide" });
@@ -82,7 +132,7 @@
             rail.title = `Open ${s.name} (or drag it out)`;
             rail.addEventListener("click", () => {   // the folded icon opens the column at normal width
                 if (rail.dataset.dragged) { delete rail.dataset.dragged; return; }   // that was a drag, not a click
-                Lemon.settings.set({ [s.fold]: false, [s.size]: "normal" });
+                setState(s, "normal");
             });
             col.appendChild(rail);
 
@@ -141,6 +191,7 @@
                 if (!drag) return;
                 const d = drag; drag = null;
                 if (!d.started) return;
+                const from = lookOf(s);   // where the dragged column is now, so the snap grows or shrinks from there
                 release();
                 const dx = (e.clientX - d.x) * (s.side === "left" ? 1 : -1);   // + = grow
                 if (Math.abs(dx) < 16) return;
@@ -150,7 +201,7 @@
                 if (!ahead.length) return;
                 const w = widthAt(e.clientX);
                 ahead.sort((a, b) => Math.abs(presetWidth(a) - w) - Math.abs(presetWidth(b) - w));
-                setState(s, ahead[0]);
+                setState(s, ahead[0], from);
             };
             bindDrag(handle);
             bindDrag(rail);
