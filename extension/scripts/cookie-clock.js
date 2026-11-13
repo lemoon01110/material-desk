@@ -65,10 +65,11 @@
         el("path", { d: SHAPES.pentagon, class: "cc-day", transform: "scale(64)" }, front);
         // The numbers sit on each bubble's visual center (its centroid), not the middle of its box: a pentagon is
         // heavier at the bottom, so its middle looks high (owner 2026-11-12: "The 12 is not centered vertically").
-        // Measured with the digits' ink: day 2.6 lower, month 4.5 higher (its pill leans), Space Grotesk 700 30 px.
+        // Measured with the digits' ink: day 2.6 lower, Space Grotesk 700 30 px.
         const day = el("text", { x: 32, y: 34.6, class: "cc-daytext" }, front);
         el("path", { d: SHAPES.pill, class: "cc-month", transform: `translate(${SIZE - 64} ${SIZE - 64}) scale(64)` }, front);
-        const month = el("text", { x: SIZE - 31.8, y: SIZE - 36.5, class: "cc-monthtext" }, front);
+        // The month stays in the middle of its pill's box (owner 2026-11-12: "11 was better the way it was before").
+        const month = el("text", { x: SIZE - 32, y: SIZE - 32, class: "cc-monthtext" }, front);
         box.appendChild(front);
 
         host.appendChild(box);
