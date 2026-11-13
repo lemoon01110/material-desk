@@ -748,7 +748,7 @@
         // Open, or open again while the close animation still runs (the detail is not hidden yet).
         if (!last || last === "wait" || !detail || (!detail.hidden && detail.classList.contains("dlw-in"))) return;
         const closing = !detail.hidden;
-        if (closing) detail.classList.add("dlw-in");   // before the pending close can hide it
+        if (closing) { detail.classList.add("dlw-in"); document.documentElement.classList.add("dlw-veil"); }   // before the pending close can hide it
         opener = it || document.activeElement;
         if (detailFor !== last || Date.now() - detailAt > 60000) renderDetail(last);
         document.documentElement.classList.add("dlw-open");
@@ -763,7 +763,10 @@
         moreHint();
         card.querySelectorAll(".dlb-now, .dlb-more").forEach((b) => b.setAttribute("aria-expanded", "true"));
         detail.classList.add("dlw-anim");
-        requestAnimationFrame(() => requestAnimationFrame(() => detail.classList.add("dlw-in")));
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            detail.classList.add("dlw-in");
+            document.documentElement.classList.add("dlw-veil");   // the clock, search and band fade out with it
+        }));
         setTimeout(() => detail.classList.remove("dlw-anim"), 400);
         detail.querySelector(".dlw-close").focus({ preventScroll: true });
         document.addEventListener("keydown", onKey, true);
@@ -772,6 +775,7 @@
     function closeDetail() {
         if (!detail || detail.hidden) return;
         detail.classList.remove("dlw-in");
+        document.documentElement.classList.remove("dlw-veil");   // and fade back in while it closes
         document.removeEventListener("keydown", onKey, true);
         document.removeEventListener("pointerdown", onOutside, true);
         card.querySelectorAll(".dlb-now, .dlb-more").forEach((b) => b.setAttribute("aria-expanded", "false"));
