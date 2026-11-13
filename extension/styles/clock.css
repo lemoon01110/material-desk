@@ -9,6 +9,9 @@
     color: color-mix(in srgb, var(--dl-primary, #8ecff2) 55%, var(--dl-primary_container, #004d67));
     font-size: 68px; line-height: 1.28; font-variant-numeric: tabular-nums; }
 #cookieClock .cc-column span + span { margin-top: -16px; }
+/* The digits' line boxes carry empty room above the numbers, so the stack's ink sat 5.5 px low: lifted to the clock's
+   center (measured 2026-11-12). */
+#cookieClock .cc-column { translate: 0 -5.5px; }
 #cookieClock .cc-column .cc-ampm { font-size: 26px; }
 #cookieClock .cc-hour { fill: none; stroke: var(--dl-primary, #8ecff2); stroke-width: 4; }
 #cookieClock .cc-minute, #cookieClock .cc-center { fill: var(--dl-tertiary, #c2c2eb); }

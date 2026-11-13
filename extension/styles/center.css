@@ -19,7 +19,7 @@
 }
 .sb-cookie { position: absolute; inset: 0; width: 100%; height: 100%; fill: var(--dl-primary_container, #733427);
     transition: transform 0.3s ease; }
-.sb-engine b, #sb-engines li i b { position: relative; }
+.sb-engine b, #sb-engines li i b { position: relative; text-box: trim-both cap alphabetic; }
 .sb-engine:hover .sb-cookie, .sb-engine[aria-expanded="true"] .sb-cookie { transform: rotate(15deg); }
 .sb-engine:hover { filter: brightness(1.12); }
 .sb-input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent;

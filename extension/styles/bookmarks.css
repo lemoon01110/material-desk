@@ -96,7 +96,8 @@ button.bm-crumb:hover { color: var(--text); background: color-mix(in srgb, var(-
 .bm-ico { display: grid; place-items: center; flex: none;
     background: var(--dl-surface_container_highest, #3d3230); color: var(--text-2); }
 .bm-ico img { display: block; }
-.bm-letter { font: 700 1.1rem/1 var(--f-display); color: var(--dl-on_surface_variant, #d8c2bd); }
+.bm-letter { font: 700 1.1rem/1 var(--f-display); color: var(--dl-on_surface_variant, #d8c2bd);
+    text-box: trim-both cap alphabetic; }   /* the capital itself centered in the tile, not the font's line box */
 .bm-folder .bm-ico { background: var(--dl-secondary_container, #5d3f39); color: var(--dl-on_secondary_container, #ffdad3); }
 .bm-text { display: flex; flex-direction: column; min-width: 0; }
 .bm-title { color: var(--text); }
