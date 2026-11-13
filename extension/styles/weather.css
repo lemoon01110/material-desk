@@ -452,7 +452,9 @@
 .dlw-chart { position: relative; height: 150px; margin: 12px 4px 24px; }
 .dlw-chart svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .dlw-night { fill: var(--dl-on_surface, #f1dfdb); fill-opacity: 0.05; }
-.dlw-pbar { fill: var(--dl-secondary, #e7bdb3); fill-opacity: 0.6; }
+.dlw-pbars { position: absolute; inset: 0; pointer-events: none; --pbw: 8px; }
+.dlw-pbar { position: absolute; bottom: 0; width: var(--pbw); translate: -50% 0; border-radius: 999px;   /* semicircle ends */
+    background: color-mix(in srgb, var(--dl-secondary, #e7bdb3) 60%, transparent); }
 .dlw-line { fill: none; stroke: var(--dl-primary, #ffb4a4); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
 .dlw-cl-t, .dlw-cl-x, .dlw-cl-p, .dlw-cl-now { position: absolute; pointer-events: none; white-space: nowrap; }
 .dlw-cl-t { transform: translate(-50%, calc(-100% - 7px)); font: 700 0.85rem var(--f-display); }

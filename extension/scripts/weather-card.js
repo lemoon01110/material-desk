@@ -641,7 +641,10 @@
         const pts = temps.map((v, i) => [x(i), y(v)]);
         const line = smooth(pts);
         const night = hs.map((h, i) => h.isDay ? "" : `<rect x="${(i / n * 100).toFixed(2)}" y="0" width="${(100 / n + 0.05).toFixed(2)}" height="100" class="dlw-night"/>`).join("");
-        const bars = hs.map((h, i) => h.rain > 0 ? `<rect x="${(x(i) - 100 / n * 0.3).toFixed(2)}" y="${(100 - h.rain * 0.26).toFixed(2)}" width="${(100 / n * 0.6).toFixed(2)}" height="${(h.rain * 0.26).toFixed(2)}" class="dlw-pbar"/>` : "").join("");
+        // The rain bars are HTML, not SVG: the SVG is stretched to the chart's shape, which would squash round ends
+        // into ovals. As boxes with a full border radius their ends are true semicircles: narrow rounded lines, never
+        // shorter than they are wide, so a small chance still shows as a dot rather than a squashed oval (owner 2026-11-13).
+        const bars = hs.map((h, i) => h.rain > 0 ? `<i class="dlw-pbar" style="left:${x(i).toFixed(2)}%;height:max(${(h.rain * 0.26).toFixed(2)}%, var(--pbw))"></i>` : "").join("");
         // Every third hour gets labels; a rain label that would touch the temperature line is left out (the hour's
         // tooltip and the header still say it).
         const labels = hs.map((h, i) => i % 3 ? "" : `
@@ -655,11 +658,12 @@
             `${hourLabel(hs[hiAt].time)}, coolest at ${hourLabel(hs[loAt].time)}. Highest chance of rain ${wet}%.`;
         return `
             <div class="dlw-chart" role="img" aria-label="${esc(summary)}">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${night}</svg>
+                <div class="dlw-pbars" aria-hidden="true">${bars}</div>
                 <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <defs><linearGradient id="dlwFill" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0" style="stop-color:var(--dl-primary, #ffb4a4);stop-opacity:0.32"/>
                         <stop offset="1" style="stop-color:var(--dl-primary, #ffb4a4);stop-opacity:0"/></linearGradient></defs>
-                    ${night}${bars}
                     <path d="${line}L${x(n - 1)} 72L${x(0)} 72Z" fill="url(#dlwFill)"/>
                     <path d="${line}" class="dlw-line" vector-effect="non-scaling-stroke"/>
                 </svg>
