@@ -191,8 +191,12 @@
 
 /* ---- The strip: the next 12 hours, then the next 7 days ---- */
 .dlb-track {
-    position: relative; z-index: 1; box-sizing: border-box; height: calc(var(--sh) + 8px);
-    display: flex; align-items: center; gap: var(--ig); margin: 0 0 var(--vb);
+    /* Room above and below for the dock magnification (weather-card.js): the strip reaches 22 px up into the gap
+       over it and 8 px down, while its layout height stays the same. The extra room takes no clicks or wheel
+       (pointer-events on the sections only), so the readings above stay fully clickable. */
+    position: relative; z-index: 1; box-sizing: border-box; height: calc(var(--sh) + 8px + 30px);
+    padding-block: 22px 8px; pointer-events: none;
+    display: flex; align-items: center; gap: var(--ig); margin: -22px 0 calc(var(--vb) - 8px);
     padding: 0 calc(var(--fw) + 8px);
     overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain;
     user-select: none; -webkit-user-select: none;
@@ -206,7 +210,11 @@
 }
 .dlb-track::-webkit-scrollbar { display: none; }
 .dlb-track.dlb-drag, .dlb-track.dlb-drag .dlb-it { cursor: grabbing; }
-.dlb-sec { display: flex; align-items: center; gap: var(--ig); flex: none; }
+.dlb-sec { display: flex; align-items: center; gap: var(--ig); flex: none; pointer-events: auto; }
+/* Magnified items move with the pointer (a short ease smooths it); they settle back more slowly when it leaves. */
+.dlb-track .dlb-it, .dlb-sep { transition: background-color 0.15s, box-shadow 0.15s, transform 0.28s cubic-bezier(0.2, 0.9, 0.25, 1); }
+.dlb-mag .dlb-track .dlb-it, .dlb-mag .dlb-sep { transition: background-color 0.15s, box-shadow 0.15s, transform 0.09s ease-out; }
+.dlb-track .dlb-col { transform-origin: 50% 75%; }
 .dlb-sep { flex: none; width: 1px; height: 46%; margin: 0 8px; background: var(--hair); }
 .dlb-sec:empty + .dlb-sep { display: none; }
 /* The fade: only items inside an edge fade get the mask (--m is where the band starts, in the item's own
@@ -225,6 +233,8 @@
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dl-on_surface, #f1dfdb) 18%, transparent);
     transform: translateY(-2px);
 }
+/* While magnifying, the size is the highlight: no box pops up behind the item. */
+.dlb-mag .dlb-track .dlb-col:not(.dlb-ghost):hover { background: transparent; box-shadow: none; }
 .dlb-sic { width: 30px; height: 30px; display: grid; place-items: center; color: var(--dl-tertiary, #dcc48c); }
 .dlb-sic svg { width: 26px; height: 26px; fill: currentColor; display: block; }
 .dlb-h { font: 600 0.88rem/1.2 var(--f-body); color: var(--ink-2); white-space: nowrap; }

@@ -941,6 +941,45 @@
             glide(t, settle(t.scrollLeft - (reduced() ? 0 : clamp(v, -4, 4)) * 260, left));
         };
         card.addEventListener("pointerup", end);
+
+        // ---- Dock magnification over the strip (owner 2026-11-13, like the macOS Dock): the hour or day under the
+        // mouse grows and lifts, its neighbours less and less along a bell curve, and the rest slide apart to make
+        // room. Each item at distance d from the pointer is scaled by 1 + A·g(d) with g(d) = exp(-(d/S)²), lifted
+        // by L·g(d), and shifted by the integral of that growth, A·S·(√π/2)·erf(d/S), so nothing overlaps and items
+        // far away keep their spacing. Mouse only, not while dragging, off with reduced motion.
+        const MAG = { A: 0.26, L: 9, on: false, x: 0, raf: 0 };
+        const erf = (x) => {   // Abramowitz and Stegun 7.1.26, good to 1e-7
+            const s = Math.sign(x), a = Math.abs(x), t = 1 / (1 + 0.3275911 * a);
+            return s * (1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-a * a));
+        };
+        function magnify() {
+            MAG.raf = 0;
+            const t = trackOf();
+            if (!t || !st.items.length) return;
+            const r = t.getBoundingClientRect(), k = r.width / (st.W || r.width) || 1;   // screen px per page px (zoom)
+            const px = (MAG.x - r.left) / k + t.scrollLeft;                              // the pointer in strip px
+            const S = (st.items[0].w + 6) * 1.15, push = MAG.A * S * Math.sqrt(Math.PI) / 2;
+            const place = (el, mid, scaled) => {
+                if (!MAG.on) { el.style.transform = ""; return; }
+                const d = (mid - px) / S, g = Math.exp(-d * d);
+                el.style.transform = `translateX(${(push * erf(d)).toFixed(2)}px)` +
+                    (scaled ? ` translateY(${(-MAG.L * g).toFixed(2)}px) scale(${(1 + MAG.A * g).toFixed(4)})` : "");
+            };
+            for (const it of st.items) if (it.s !== "off" || !MAG.on) place(it.el, it.l + it.w / 2, true);
+            for (const sp of st.seps) place(sp.el, sp.l, false);
+        }
+        const queueMag = () => { if (!MAG.raf) MAG.raf = requestAnimationFrame(magnify); };
+        card.addEventListener("pointermove", (e) => {
+            if (e.pointerType !== "mouse" || reduced()) return;
+            const over = !drag && !!e.target.closest(".dlb-track");
+            if (!over && !MAG.on) return;
+            MAG.on = over; MAG.x = e.clientX;
+            card.classList.toggle("dlb-mag", over);
+            queueMag();
+        });
+        card.addEventListener("pointerleave", () => { if (MAG.on) { MAG.on = false; card.classList.remove("dlb-mag"); queueMag(); } });
+        card.addEventListener("scroll", () => { if (MAG.on) queueMag(); }, true);
+        card.addEventListener("pointerdown", () => { if (MAG.on) { MAG.on = false; card.classList.remove("dlb-mag"); queueMag(); } });
         card.addEventListener("pointercancel", end);
         // Any other scroll (touch, the browser) still updates the fade, once per frame.
         let pend = 0;
