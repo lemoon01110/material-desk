@@ -244,19 +244,19 @@
 .dlb-track .dlb-col::before, .dlb-track .dlb-col::after {
     content: ""; position: absolute; top: 16%; bottom: 16%; width: 1.5px; border-radius: 1px;
     background: linear-gradient(180deg, rgb(255 255 255 / 0.15), rgb(255 255 255 / 0.95) 35%, rgb(255 255 255 / 0.95) 65%, rgb(255 255 255 / 0.15));
-    box-shadow: 0 0 6px rgb(255 255 255 / 0.45), 0 0 1px rgb(0 0 0 / 0.35); opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+    box-shadow: 0 0 1px rgb(0 0 0 / 0.35); opacity: 0; transition: opacity 0.15s; pointer-events: none; }
 .dlb-track .dlb-col::before { left: 0; } .dlb-track .dlb-col::after { right: 0; }
 /* The mouse uses the strip's one shared pair of lines (.dlb-mark, weather-card.js); these per-item lines are only
    for the keyboard focus. */
 .dlb-track .dlb-col:focus-visible::before, .dlb-track .dlb-col:focus-visible::after { opacity: 1; }
 .dlb-hov .dlb-track .dlb-col:focus-visible::before, .dlb-hov .dlb-track .dlb-col:focus-visible::after { opacity: 0; }
 .dlb-marks { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 2; }
-/* Liquid glass (owner 2026-11-13: "thinner and like liquid glass and white"): a hairline of white light, brightest in
-   the middle and clearing toward both ends, with a soft glow around it and a faint dark edge so it reads on a bright
-   wallpaper too. */
+/* Liquid glass (owner 2026-11-13: "thinner and like liquid glass and white"): a hairline of white, brightest in the
+   middle and clearing toward both ends, no glow (owner: "I dont like it glowing"), with a faint dark edge so it reads
+   on a bright wallpaper too. */
 .dlb-mark { position: absolute; left: 0; top: 0; width: 1.5px; border-radius: 1px;
     background: linear-gradient(180deg, rgb(255 255 255 / 0.15), rgb(255 255 255 / 0.95) 35%, rgb(255 255 255 / 0.95) 65%, rgb(255 255 255 / 0.15));
-    box-shadow: 0 0 6px rgb(255 255 255 / 0.45), 0 0 1px rgb(0 0 0 / 0.35);
+    box-shadow: 0 0 1px rgb(0 0 0 / 0.35);
     opacity: 0; transition: transform 0.16s cubic-bezier(0.2, 0.9, 0.25, 1), height 0.16s cubic-bezier(0.2, 0.9, 0.25, 1), opacity 0.15s; }
 .dlb-mag .dlb-mark { transition: transform 0.09s ease-out, height 0.09s ease-out, opacity 0.15s; }
 .dlb-mark.on { opacity: 1; }
