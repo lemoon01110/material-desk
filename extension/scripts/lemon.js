@@ -262,8 +262,24 @@
         if (!window.__lemonSettled) root.classList.add("lemon-loading");
         return `:root { ${vars} } html { zoom: ${scale}; }`;
     }
+    // Tab icon: the cookie clock (the extension icon's shape) in the look's light accent with dark hands, set the moment
+    // a look is applied, so the tab never flashes the packaged icon first (owner 2026-11-13: "for a split second the
+    // icon is a purple clock").
+    const TAB_COOKIE = "M0.92409 0.74485C0.91128 0.76703 0.88955 0.78405 0.8623 0.79001C0.82615 0.79792 0.79792 0.82615 0.79001 0.8623C0.7781 0.91679 0.7219 0.94923 0.66875 0.93231C0.6335 0.92108 0.59493 0.93142 0.57001 0.95877C0.53244 1 0.46756 1 0.42999 0.95877C0.40507 0.93142 0.3665 0.92108 0.33125 0.93231C0.2781 0.94923 0.2219 0.91679 0.20999 0.8623C0.20208 0.82615 0.17385 0.79792 0.1377 0.79001C0.08321 0.7781 0.05077 0.7219 0.06769 0.66875C0.07892 0.6335 0.06858 0.59493 0.04123 0.57001C0 0.53244 0 0.46756 0.04123 0.42999C0.06858 0.40507 0.07892 0.3665 0.06769 0.33125C0.05077 0.2781 0.08321 0.2219 0.1377 0.20999C0.17385 0.20208 0.20208 0.17385 0.20999 0.1377C0.2219 0.08321 0.2781 0.05077 0.33125 0.06769C0.3665 0.07892 0.40507 0.06858 0.42999 0.04123C0.46756 0 0.53244 0 0.57001 0.04123C0.59493 0.06858 0.6335 0.07892 0.66875 0.06769C0.7219 0.05077 0.7781 0.08321 0.79001 0.1377C0.79792 0.17385 0.82615 0.20208 0.8623 0.20999C0.91679 0.2219 0.94923 0.2781 0.93231 0.33125C0.92108 0.3665 0.93142 0.40507 0.95877 0.42999C1 0.46756 1 0.53244 0.95877 0.57001C0.93142 0.59493 0.92108 0.6335 0.93231 0.66875C0.94077 0.69533 0.93689 0.72266 0.92409 0.74485Z";
+    function setTabIcon(cfg) {
+        const c = (cfg && cfg.colors) || {};
+        const fg = c.primary || "#ffb4a4", hand = c.on_primary || c.surface || "#2b1a52";
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g transform="translate(1 1) scale(22)">` +
+            `<path fill="${fg}" d="${TAB_COOKIE}"/></g><g stroke="${hand}" stroke-width="2.6" stroke-linecap="round">` +
+            `<line x1="12" y1="12" x2="12" y2="6.5"/><line x1="12" y1="12" x2="16.5" y2="12"/></g></svg>`;
+        const link = document.getElementById("favicon");
+        if (!link) return;
+        link.setAttribute("type", "image/svg+xml");
+        link.href = "data:image/svg+xml," + encodeURIComponent(svg);
+    }
     function applyLook(cfg) {
         window.desktopLook = cfg || {};
+        setTabIcon(cfg);
         let tag = document.getElementById("lemon-look");
         if (!tag) { tag = document.createElement("style"); tag.id = "lemon-look"; root.appendChild(tag); }
         tag.textContent = styleFor(cfg);

@@ -98,22 +98,7 @@
         setTimeout(() => { tick(); setInterval(tick, 1000); }, 1000 - new Date().getMilliseconds());
     }
 
-    // Tab icon: a home in the light accent, which stays visible on a dark tab strip. Redrawn when the look changes.
-    function setTabIcon() {
-        const css = getComputedStyle(document.documentElement);
-        const fg = css.getPropertyValue("--dl-primary").trim() || "#ffb4a4";
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="${fg}" ` +
-            `d="M4 21V9.5l8-6 8 6V21h-6v-6.5h-4V21z"/></svg>`;
-        const link = document.getElementById("favicon");
-        if (!link) return;
-        link.href = "data:image/svg+xml," + encodeURIComponent(svg);
-        link.setAttribute("type", "image/svg+xml");
-    }
-
     function start() {
-        // The tab icon follows the look (colors arrive from lemon.js before load).
-        window.addEventListener("load", setTabIcon);
-        document.addEventListener("lemon:look", setTabIcon);
         const host = document.getElementById("clock-host");
         if (!host || document.getElementById("cookieClock")) return;
         build(host);
